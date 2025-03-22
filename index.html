@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Space Simulation</title>
+    <link rel="stylesheet" href="src/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <button id="toggleMode" class="toggle-button">Switch to Managed Mode</button>
+            <div class="stats">
+                <span id="timeDisplay">Time: 9:00 AM</span>
+                <span id="modeDisplay">Mode: Chaotic</span>
+            </div>
+        </div>
+        <canvas id="officeCanvas" width="800" height="600"></canvas>
+        <div class="legend">
+            <div class="legend-item">
+                <span class="color-box available"></span>
+                <span>Available</span>
+            </div>
+            <div class="legend-item">
+                <span class="color-box booked"></span>
+                <span>Booked</span>
+            </div>
+            <div class="legend-item">
+                <span class="color-box occupied"></span>
+                <span>Occupied</span>
+            </div>
+        </div>
+    </div>
+    <script src="src/js/constants.js"></script>
+    <script src="src/js/utils.js"></script>
+    <script src="src/js/Character.js"></script>
+    <script src="src/js/Space.js"></script>
+    <script src="src/js/simulation.js"></script>
+</body>
+</html> 
