@@ -1,40 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Office Space Simulation</title>
-    <link rel="stylesheet" href="src/css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Office Space Simulation</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <div class="controls">
-            <button id="toggleMode" class="toggle-button">Switch to Managed Mode</button>
-            <div class="stats">
-                <span id="timeDisplay">Time: 9:00 AM</span>
-                <span id="modeDisplay">Mode: Chaotic</span>
-            </div>
+  <div class="container">
+    <header>
+      <h1>3D Office Space Simulation</h1>
+      <div class="mode-container">
+        <span>Mode: </span>
+        <span id="modeDisplay" class="mode-managed">Managed</span>
+        <button id="modeToggle">Toggle Mode</button>
+      </div>
+    </header>
+    
+    <div class="simulation-container">
+      <canvas id="simulationCanvas"></canvas>
+      
+      <div class="control-panel">
+        <div class="simulation-controls">
+          <h3>Simulation Controls</h3>
+          <!-- <div class="time-display" id="timeDisplay">Time: 9:00 AM</div> -->
+          <button id="pauseToggle">Pause</button>
+          <div class="speed-controls">
+            <span>Speed: </span>
+            <button data-speed="1" class="selected">1x</button>
+            <button data-speed="2">2x</button>
+            <button data-speed="5">5x</button>
+          </div>
+          <button id="editorToggle">Layout Editor</button>
         </div>
-        <canvas id="officeCanvas" width="800" height="600"></canvas>
+        
+        <div id="layoutControls" class="layout-controls" style="display:none;">
+          <h3>Layout Controls</h3>
+          <div class="space-type-selector">
+            <span>Space Type: </span>
+            <button data-space-type="desk" class="selected">Desk</button>
+            <button data-space-type="meeting">Meeting Room</button>
+          </div>
+          <div class="layout-actions">
+            <button id="saveLayout">Save Layout</button>
+            <button id="loadLayout">Load Layout</button>
+            <button id="loadFromEditor">Apply Layout</button>
+          </div>
+        </div>
+        
         <div class="legend">
-            <div class="legend-item">
-                <span class="color-box available"></span>
-                <span>Available</span>
-            </div>
-            <div class="legend-item">
-                <span class="color-box booked"></span>
-                <span>Booked</span>
-            </div>
-            <div class="legend-item">
-                <span class="color-box occupied"></span>
-                <span>Occupied</span>
-            </div>
+          <h3>Legend</h3>
+          <div class="legend-item">
+            <span class="color-indicator available"></span>
+            <span>Available</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-indicator occupied"></span>
+            <span>Occupied</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-indicator booked"></span>
+            <span>Booked</span>
+          </div>
+          <div class="legend-item">
+            <span class="color-indicator unavailable"></span>
+            <span>Unavailable</span>
+          </div>
         </div>
+      </div>
     </div>
-    <script src="src/js/constants.js"></script>
-    <script src="src/js/utils.js"></script>
-    <script src="src/js/Character.js"></script>
-    <script src="src/js/Space.js"></script>
-    <script src="src/js/simulation.js"></script>
+    
+    <footer>
+      <p>This simulation demonstrates office space usage in managed vs. chaotic environments. Toggle between modes to see the difference in space efficiency and employee satisfaction.</p>
+      <p>Click "Layout Editor" to customize the office layout.</p>
+    </footer>
+  </div>
+  
+  <script src="dist/bundle.js"></script>
 </body>
 </html> 
