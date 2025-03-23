@@ -80,7 +80,7 @@ export type DeskMap = {
     [key: string]: Desk
 }
 
-export type Event = {
+export type WorkerEvent = {
     id: string,
     title: string,
     timeFrame: {
@@ -91,8 +91,8 @@ export type Event = {
     spaceForEvent: Space
 }
 
-export type EventMap = {
-    [key: string]: Event
+export type WorkerEventMap = {
+    [key: string]: WorkerEvent
 }
 
 /*
@@ -116,7 +116,7 @@ export type SpaceMap = {
 }
 
 export type AllEvents = {
-    [key: string]: Event & {
+    [key: string]: WorkerEvent & {
         spaceForEvent: Space
     }
 }
@@ -169,22 +169,7 @@ export type Worker = {
         y: number
     } | null,
     nextEventTime: number | null,
-    events: {
-        id: string,
-        title: string,
-        timeFrame: {
-            startTime: number, 
-            endTime: number
-        },
-        attendees: Attendees,
-        spaceForEvent: {
-            locationOfSpace: {
-                x: number, 
-                y: number
-            }, 
-            currentStateOfSpace: SpaceState
-        }
-    }[],
+    events: WorkerEvent[],
 }
 
 export type WorkerMap = {

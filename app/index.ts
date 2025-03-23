@@ -468,8 +468,8 @@ function updateEventsWorkerInfo(worker: Worker): void {
         eventElement.innerHTML = `
             <div class="event-title">${event.title}</div>
             <div class="event-time">Time: ${startTime} - ${endTime}</div>
-            <div class="event-space">Space: ${event.spaceForEvent.locationOfSpace 
-                ? `(${Math.round(event.spaceForEvent.locationOfSpace.x)}, ${Math.round(event.spaceForEvent.locationOfSpace.y)})`
+            <div class="event-space">Space: ${event.spaceForEvent 
+                ? `(${Math.round(event.spaceForEvent.x)}, ${Math.round(event.spaceForEvent.y)})`
                 : 'Unknown'}</div>
         `;
         

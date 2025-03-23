@@ -1,4 +1,4 @@
-import { Worker, Desk, Space, WorkerMentalState, WorkerPhysicalState, DeskState, SpaceState, DeskMap, EventMap, SpaceMap, WorkerMap } from './types';
+import { Worker, Desk, Space, WorkerMentalState, WorkerPhysicalState, DeskState, SpaceState, DeskMap, WorkerEventMap, SpaceMap, WorkerMap, WorkerEvent } from './types';
 import { generateId, getRandomDestination, moveWorkerTowardsDestination, getRandomNumber } from './utils';
 
 export class OfficeWorkerManager {
@@ -8,7 +8,7 @@ export class OfficeWorkerManager {
     private desksMap: DeskMap = {};
     private spaces: Space[] = [];
     private spacesMap: SpaceMap = {};
-    private events: EventMap = {};
+    private events: WorkerEventMap = {};
     private canvasWidth: number;
     private canvasHeight: number;
     private isManaged: boolean = false;
@@ -46,6 +46,7 @@ export class OfficeWorkerManager {
     initializeOffice(numWorkers: number = 10, numDesks: number = 5, numSpaces: number = 5): void {
         this.createDesks(numDesks);
         this.createSpaces(numSpaces);
+        this.createEvents(60 * 1000); // Create events for the 60-second day
         this.createWorkers(numWorkers);
     }
     
@@ -116,6 +117,44 @@ export class OfficeWorkerManager {
     }
     
     /**
+     * Create global events that can be shared between workers
+     */
+    private createEvents(totalSimulationTime: number, maxEvents: number = 10): void {
+        this.events = {};
+        
+        // Generate 5-10 random events for the day
+        const numEvents = 5 + Math.floor(Math.random() * 6);
+        
+        for (let i = 0; i < numEvents; i++) {
+            // Generate random event times (between 20% and 80% of total time)
+            const startPercentage = 0.2 + (Math.random() * 0.6);
+            const startTime = Math.floor(startPercentage * totalSimulationTime);
+            const duration = 5000 + (Math.random() * 10000); // 5-15 seconds event
+            const endTime = Math.min(startTime + duration, totalSimulationTime);
+            
+            // Find an available space for potential event assignment
+            const availableSpaces = this.spaces.filter(space => space.state === SpaceState.AVAILABLE);
+            // Create the event (space will be assigned dynamically when workers attend)
+            const eventId = generateId('event');
+            const workerEvent: WorkerEvent = {
+                id: eventId,
+                title: `Meeting ${i + 1}`,
+                timeFrame: {
+                    startTime: startTime,
+                    endTime: endTime
+                },
+                attendees: {
+                    worker: []
+                },
+                // Space will be dynamically assigned when first worker arrives
+                spaceForEvent: availableSpaces.length > 0 ? availableSpaces[0] : this.spaces[0]
+            };
+            
+            this.events[eventId] = workerEvent;
+        }
+    }
+    
+    /**
      * Create workers
      */
     private createWorkers(numWorkers: number): void {
@@ -181,8 +220,8 @@ export class OfficeWorkerManager {
                 }
             }
             
-            // Generate random events for this worker
-            this.generateRandomEvents(worker, totalSimulationTime);
+            // Assign random events to this worker
+            this.assignEventsToWorker(worker);
             
             this.workers.push(worker);
             this.workersMap[worker.id] = worker;
@@ -190,67 +229,36 @@ export class OfficeWorkerManager {
     }
     
     /**
-     * Generate random events for a worker
+     * Assign random events to a worker
      */
-    private generateRandomEvents(worker: Worker, totalSimulationTime: number): void {
-        // Generate 1-3 random events for this worker
-        const numEvents = Math.floor(Math.random() * 3) + 1;
-        const events = [];
+    private assignEventsToWorker(worker: Worker): void {
+        // Get all available events
+        const allEvents = Object.values(this.events);
+        if (allEvents.length === 0) return;
         
-        for (let i = 0; i < numEvents; i++) {
-            // Generate random event times (between 20% and 80% of total time)
-            const startPercentage = 0.2 + (Math.random() * 0.6);
-            const startTime = Math.floor(startPercentage * totalSimulationTime);
-            const duration = 5000 + (Math.random() * 10000); // 5-15 seconds event
-            const endTime = Math.min(startTime + duration, totalSimulationTime);
+        // Determine how many events this worker will have (1-3)
+        const numEvents = 1 + Math.floor(Math.random() * 3);
+        const assignedEvents = [];
+        
+        // Assign random events to this worker
+        for (let i = 0; i < numEvents && allEvents.length > 0; i++) {
+            const randomIndex = Math.floor(Math.random() * allEvents.length);
+            const selectedEvent = allEvents[randomIndex];
             
-            // Find an available space for the event
-            const availableSpaces = this.spaces.filter(space => space.state === SpaceState.AVAILABLE);
-            if (availableSpaces.length === 0) continue;
+            // Add this worker to the event's attendees
+            selectedEvent.attendees.worker.push(worker);
             
-            const spaceIndex = Math.floor(Math.random() * availableSpaces.length);
-            const eventSpace = availableSpaces[spaceIndex];
-            
-            // Create the worker event structure (this mirrors what's in Worker type)
-            const workerEvent = {
-                id: generateId('event'),
-                title: `Meeting ${i + 1}`,
-                timeFrame: {
-                    startTime: startTime,
-                    endTime: endTime
-                },
-                attendees: {
-                    worker: [worker]
-                },
-                spaceForEvent: {
-                    locationOfSpace: {
-                        x: eventSpace.x, 
-                        y: eventSpace.y
-                    },
-                    currentStateOfSpace: eventSpace.state
-                }
-            };
-            
-            // Create the proper Event type for the events map
-            const event = {
-                id: workerEvent.id,
-                title: workerEvent.title,
-                timeFrame: workerEvent.timeFrame,
-                attendees: workerEvent.attendees,
-                spaceForEvent: eventSpace
-            };
-            
-            events.push(workerEvent);
-            this.events[event.id] = event;
+            // Add to worker's events
+            assignedEvents.push(selectedEvent);
         }
         
         // Sort events by start time
-        events.sort((a, b) => a.timeFrame.startTime - b.timeFrame.startTime);
-        worker.events = events;
+        assignedEvents.sort((a, b) => a.timeFrame.startTime - b.timeFrame.startTime);
+        worker.events = assignedEvents;
         
         // Set next event time if there are events
-        if (events.length > 0) {
-            worker.nextEventTime = events[0].timeFrame.startTime;
+        if (assignedEvents.length > 0) {
+            worker.nextEventTime = assignedEvents[0].timeFrame.startTime;
         }
     }
     
@@ -384,20 +392,174 @@ export class OfficeWorkerManager {
      * Handle worker arriving at a meeting space
      */
     private handleSpaceArrival(worker: Worker): void {
-        // Worker arrived at meeting space
-        worker.physicalState = WorkerPhysicalState.ATTENDING_EVENT;
+        // Find the current event the worker is headed to
+        const currentEvent = this.getNextEventStartingSoon(worker);
         
-        // Get current event
-        const currentEvent = this.getCurrentEvent(worker);
-        if (currentEvent) {
-            // Find the space for this event
-            const space = this.findSpaceAtLocation(worker.location.x, worker.location.y);
-            if (space) {
-                space.state = SpaceState.OCCUPIED;
+        if (!currentEvent) {
+            // No current event, worker is lost, set them to wandering
+            console.log(`Worker ${worker.id} (${worker.name}) arrived at space but has no event`);
+            worker.physicalState = WorkerPhysicalState.WANDERING;
+            this.setRandomDestination(worker);
+            return;
+        }
+        
+        // Find the space the worker arrived at
+        const space = this.findSpaceAtLocation(worker.location.x, worker.location.y);
+        
+        if (!space) {
+            // No space found, worker is lost, set them to wandering
+            console.log(`Worker ${worker.id} (${worker.name}) couldn't find space at location`);
+            worker.physicalState = WorkerPhysicalState.WANDERING;
+            this.setRandomDestination(worker);
+            return;
+        }
+        
+        // Check if the space is already occupied
+        if (space.state === SpaceState.OCCUPIED) {
+            // Find out which event is currently taking place in this space
+            const spaceEvent = this.findEventBySpace(space.id);
+            
+            // If worker has the same event, they can join
+            if (spaceEvent && spaceEvent.id === currentEvent.id) {
+                console.log(`Worker ${worker.id} (${worker.name}) joining shared event ${currentEvent.id} in space ${space.id}`);
+                worker.physicalState = WorkerPhysicalState.ATTENDING_EVENT;
                 worker.occupiedSpace.currentOccupiedSpace = {
                     spaceId: space.id,
                     time: this.currentTime
                 };
+            } else {
+                // Space is occupied by a different event, try to find another space
+                console.log(`Worker ${worker.id} (${worker.name}) found space ${space.id} occupied by different event, looking for another`);
+                worker.mentalState = WorkerMentalState.CONFUSED;
+                this.findSpaceForWorkerEvent(worker, currentEvent);
+            }
+        } else {
+            // Space is available, worker can occupy it
+            console.log(`Worker ${worker.id} (${worker.name}) occupying space ${space.id} for event ${currentEvent.id}`);
+            space.state = SpaceState.OCCUPIED;
+            worker.physicalState = WorkerPhysicalState.ATTENDING_EVENT;
+            worker.occupiedSpace.currentOccupiedSpace = {
+                spaceId: space.id,
+                time: this.currentTime
+            };
+            
+            // Assign this space to the event
+            currentEvent.spaceForEvent = space;
+        }
+    }
+    
+    /**
+     * Find an event by the space it's being held in
+     */
+    private findEventBySpace(spaceId: string): WorkerEvent | null {
+        // Look through all events to find one that's using this space
+        for (const eventId in this.events) {
+            const event = this.events[eventId];
+            if (event.spaceForEvent && event.spaceForEvent.id === spaceId) {
+                return event;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Get the event that's starting soon for a worker
+     */
+    private getNextEventStartingSoon(worker: Worker): WorkerEvent | null {
+        // Look for events that are starting within the next few minutes or have just started
+        const timeWindow = this.getRandomPreEventTime(); // Same window used for pre-event preparation
+        
+        const event = worker.events.find(event => 
+            event.timeFrame.startTime - this.currentTime <= timeWindow && 
+            event.timeFrame.endTime > this.currentTime
+        );
+        
+        return event || null;
+    }
+    
+    /**
+     * Find a space for a worker to attend their event
+     */
+    private findSpaceForWorkerEvent(worker: Worker, event: WorkerEvent): void {
+        // If the event already has a space assigned, go there
+        if (event.spaceForEvent) {
+            // Check if the space is still available
+            const space = this.getSpaceById(event.spaceForEvent.id);
+            if (space && space.state === SpaceState.AVAILABLE) {
+                console.log(`Worker ${worker.id} (${worker.name}) going to event's assigned space ${space.id}`);
+                worker.destinationLocation = {
+                    x: space.destinationX || space.x,
+                    y: space.destinationY || space.y
+                };
+                worker.physicalState = WorkerPhysicalState.MOVING_TO_SPACE;
+                return;
+            }
+        }
+        
+        // Look for an available space
+        const availableSpaces = this.spaces.filter(space => space.state === SpaceState.AVAILABLE);
+        
+        if (availableSpaces.length > 0) {
+            // Find other workers attending this event to see if any are already at a space
+            const eventAttendees = event.attendees.worker;
+            for (const attendee of eventAttendees) {
+                if (attendee.id !== worker.id && // Not the current worker
+                    attendee.occupiedSpace.currentOccupiedSpace && // Has an occupied space
+                    attendee.physicalState === WorkerPhysicalState.ATTENDING_EVENT) { // Is attending an event
+                    
+                    // Get the space this attendee is at
+                    const attendeeSpaceId = attendee.occupiedSpace.currentOccupiedSpace.spaceId;
+                    const attendeeSpace = this.getSpaceById(attendeeSpaceId);
+                    
+                    if (attendeeSpace) {
+                        console.log(`Worker ${worker.id} (${worker.name}) going to join attendee at space ${attendeeSpace.id}`);
+                        // Go to this space to join the event
+                        worker.destinationLocation = {
+                            x: attendeeSpace.destinationX || attendeeSpace.x,
+                            y: attendeeSpace.destinationY || attendeeSpace.y
+                        };
+                        worker.physicalState = WorkerPhysicalState.MOVING_TO_SPACE;
+                        return;
+                    }
+                }
+            }
+            
+            // No attendees found at a space, pick a random available space
+            const randomIndex = Math.floor(Math.random() * availableSpaces.length);
+            const space = availableSpaces[randomIndex];
+            
+            console.log(`Worker ${worker.id} (${worker.name}) going to random available space ${space.id}`);
+            worker.destinationLocation = {
+                x: space.destinationX || space.x,
+                y: space.destinationY || space.y
+            };
+            worker.physicalState = WorkerPhysicalState.MOVING_TO_SPACE;
+        } else {
+            // No available spaces, worker is frustrated and goes back to desk
+            console.log(`Worker ${worker.id} (${worker.name}) found no available spaces, returning to desk`);
+            worker.mentalState = WorkerMentalState.FRUSTRATED;
+            
+            // Try to return to the last occupied desk
+            if (worker.occupiedDesk.lastOccupiedDesk) {
+                const deskId = worker.occupiedDesk.lastOccupiedDesk.deskId;
+                const desk = this.getDeskById(deskId);
+                
+                if (desk && desk.state === DeskState.AVAILABLE) {
+                    // Last desk is available, go to it
+                    console.log(`Worker ${worker.id} (${worker.name}) returning to last desk ${deskId}`);
+                    worker.destinationLocation = {
+                        x: desk.destinationX,
+                        y: desk.destinationY
+                    };
+                    worker.physicalState = WorkerPhysicalState.MOVING_TO_DESK;
+                } else {
+                    // Last desk not available, find a new one
+                    this.findDeskForWorker(worker);
+                }
+            } else {
+                // No last desk, find a new one
+                console.log(`Worker ${worker.id} (${worker.name}) has no last desk, seeking new desk`);
+                this.findDeskForWorker(worker);
             }
         }
     }
@@ -406,12 +568,97 @@ export class OfficeWorkerManager {
      * Update worker state based on current time and events
      */
     private updateWorkerState(worker: Worker): void {
-        // Only update if the worker is in a steady state (WORKING or WANDERING)
+        // Only update if the worker is in a steady state or attending an event
         if (
             worker.physicalState !== WorkerPhysicalState.WORKING && 
             worker.physicalState !== WorkerPhysicalState.WANDERING &&
             worker.physicalState !== WorkerPhysicalState.ATTENDING_EVENT
         ) {
+            return;
+        }
+        
+        // Check if worker is attending an event and it's over
+        if (worker.physicalState === WorkerPhysicalState.ATTENDING_EVENT) {
+            // Find the current event the worker is attending
+            const currentEvent = worker.events.find(event => 
+                this.currentTime >= event.timeFrame.startTime && 
+                this.currentTime <= event.timeFrame.endTime
+            );
+            
+            // If no current event is found, or the event has ended
+            if (!currentEvent || this.currentTime > currentEvent.timeFrame.endTime) {
+                console.log(`Worker ${worker.id} (${worker.name}) event ended, leaving space`);
+                
+                // Initialize desk search attempts if not already set
+                if (!(worker as any).deskSearchAttempts) {
+                    (worker as any).deskSearchAttempts = 0;
+                }
+                
+                // Update space state if worker is occupying one
+                if (worker.occupiedSpace.currentOccupiedSpace) {
+                    const spaceId = worker.occupiedSpace.currentOccupiedSpace.spaceId;
+                    const space = this.getSpaceById(spaceId);
+                    
+                    if (space) {
+                        // Check if other workers are still using this space for the same event
+                        const otherWorkersInSpace = this.workers.filter(w => 
+                            w.id !== worker.id && 
+                            w.occupiedSpace.currentOccupiedSpace && 
+                            w.occupiedSpace.currentOccupiedSpace.spaceId === spaceId &&
+                            w.physicalState === WorkerPhysicalState.ATTENDING_EVENT
+                        );
+                        
+                        // Only set space to available if no one else is using it
+                        if (otherWorkersInSpace.length === 0) {
+                            space.state = SpaceState.AVAILABLE;
+                        }
+                        
+                        // Update worker's occupied space
+                        worker.occupiedSpace.lastOccupiedSpace = worker.occupiedSpace.currentOccupiedSpace;
+                        worker.occupiedSpace.currentOccupiedSpace = null;
+                    }
+                }
+                
+                // Try to return to the last occupied desk
+                if (worker.occupiedDesk.lastOccupiedDesk) {
+                    const deskId = worker.occupiedDesk.lastOccupiedDesk.deskId;
+                    const desk = this.getDeskById(deskId);
+                    
+                    if (desk && desk.state === DeskState.AVAILABLE) {
+                        // Last desk is available, go to it
+                        console.log(`Worker ${worker.id} (${worker.name}) returning to last desk ${deskId}`);
+                        worker.destinationLocation = {
+                            x: desk.destinationX,
+                            y: desk.destinationY
+                        };
+                        worker.physicalState = WorkerPhysicalState.MOVING_TO_DESK;
+                        // Reset desk search attempts on successful desk find
+                        (worker as any).deskSearchAttempts = 0;
+                    } else if (desk && desk.state !== DeskState.AVAILABLE) {
+                        // Last desk is occupied, worker is confused
+                        console.log(`Worker ${worker.id} (${worker.name}) found last desk ${deskId} occupied, seeking new desk`);
+                        worker.mentalState = WorkerMentalState.CONFUSED;
+                        worker.physicalState = WorkerPhysicalState.WANDERING;
+                        // Increment search attempts and try to find another desk
+                        (worker as any).deskSearchAttempts++;
+                        this.findDeskForWorker(worker);
+                    } else {
+                        // Desk not found, find a new one
+                        console.log(`Worker ${worker.id} (${worker.name}) last desk ${deskId} not found, seeking new desk`);
+                        (worker as any).deskSearchAttempts++;
+                        worker.physicalState = WorkerPhysicalState.WANDERING;
+                        this.findDeskForWorker(worker);
+                    }
+                } else {
+                    // No last desk, find a new one
+                    console.log(`Worker ${worker.id} (${worker.name}) has no last desk, seeking new desk`);
+                    (worker as any).deskSearchAttempts++;
+                    worker.physicalState = WorkerPhysicalState.WANDERING;
+                    this.findDeskForWorker(worker);
+                }
+            }
+            
+            // If still attending an event, don't process other logic
             return;
         }
         
@@ -422,67 +669,10 @@ export class OfficeWorkerManager {
             if (nextEvent) {
                 const timeUntilEvent = nextEvent.timeFrame.startTime - this.currentTime;
                 
-                // If worker is attending an event and it's over
-                if (worker.physicalState === WorkerPhysicalState.ATTENDING_EVENT) {
-                    const currentEvent = this.getCurrentEvent(worker);
-                    if (currentEvent && currentEvent.timeFrame.endTime <= this.currentTime) {
-                        // Event ended, update worker state
-                        worker.physicalState = WorkerPhysicalState.WANDERING;
-                        
-                        // Initialize desk search attempts if not already set
-                        if (!(worker as any).deskSearchAttempts) {
-                            (worker as any).deskSearchAttempts = 0;
-                        }
-                        
-                        // Try to return to the last occupied desk
-                        if (worker.occupiedDesk.lastOccupiedDesk) {
-                            const deskId = worker.occupiedDesk.lastOccupiedDesk.deskId;
-                            const desk = this.getDeskById(deskId);
-                            
-                            if (desk && desk.state === DeskState.AVAILABLE) {
-                                // Last desk is available, go to it
-                                worker.destinationLocation = {
-                                    x: desk.destinationX,
-                                    y: desk.destinationY
-                                };
-                                worker.physicalState = WorkerPhysicalState.MOVING_TO_DESK;
-                                // Reset desk search attempts on successful desk find
-                                (worker as any).deskSearchAttempts = 0;
-                            } else if (desk && desk.state !== DeskState.AVAILABLE) {
-                                // Last desk is occupied, worker is confused
-                                worker.mentalState = WorkerMentalState.CONFUSED;
-                                // Increment search attempts and try to find another desk
-                                (worker as any).deskSearchAttempts++;
-                                this.findDeskForWorker(worker);
-                            } else {
-                                // Find a new desk
-                                (worker as any).deskSearchAttempts++;
-                                this.findDeskForWorker(worker);
-                            }
-                        } else {
-                            // No last desk, find a new one
-                            (worker as any).deskSearchAttempts++;
-                            this.findDeskForWorker(worker);
-                        }
-                        
-                        // Update space state
-                        if (worker.occupiedSpace.currentOccupiedSpace) {
-                            const spaceId = worker.occupiedSpace.currentOccupiedSpace.spaceId;
-                            const space = this.getSpaceById(spaceId);
-                            
-                            if (space) {
-                                space.state = SpaceState.AVAILABLE;
-                                
-                                // Update worker's occupied space
-                                worker.occupiedSpace.lastOccupiedSpace = worker.occupiedSpace.currentOccupiedSpace;
-                                worker.occupiedSpace.currentOccupiedSpace = null;
-                            }
-                        }
-                    }
-                }
                 // If time until next event is between 1-10 minutes (simulated)
-                else if (timeUntilEvent > 0 && timeUntilEvent <= this.getRandomPreEventTime()) {
+                if (timeUntilEvent > 0 && timeUntilEvent <= this.getRandomPreEventTime()) {
                     // Worker needs to go to the event
+                    console.log(`Worker ${worker.id} (${worker.name}) heading to event ${nextEvent.id}`);
                     
                     // If worker is at a desk, update desk state
                     if (worker.physicalState === WorkerPhysicalState.WORKING && worker.occupiedDesk.currentOccupiedDesk) {
@@ -502,13 +692,8 @@ export class OfficeWorkerManager {
                         }
                     }
                     
-                    // Set destination to the event space
-                    const eventSpace = nextEvent.spaceForEvent.locationOfSpace;
-                    worker.destinationLocation = {
-                        x: eventSpace.x,
-                        y: eventSpace.y
-                    };
-                    worker.physicalState = WorkerPhysicalState.MOVING_TO_SPACE;
+                    // Find or set destination to the event space
+                    this.findSpaceForWorkerEvent(worker, nextEvent);
                 }
             }
         }
@@ -518,6 +703,7 @@ export class OfficeWorkerManager {
             // Occasionally try to find a desk again if frustrated
             if (worker.mentalState === WorkerMentalState.FRUSTRATED && Math.random() < 0.005) { // ~0.5% chance per frame
                 // Reset desk search attempts and try again
+                console.log(`Worker ${worker.id} (${worker.name}) is frustrated and looking for a desk again`);
                 (worker as any).deskSearchAttempts = 0;
                 this.findDeskForWorker(worker);
             }
@@ -561,16 +747,6 @@ export class OfficeWorkerManager {
     private getNextEvent(worker: Worker): any {
         return worker.events.find(event => 
             event.timeFrame.startTime > this.currentTime
-        );
-    }
-    
-    /**
-     * Get the current event for a worker
-     */
-    private getCurrentEvent(worker: Worker): any {
-        return worker.events.find(event => 
-            event.timeFrame.startTime <= this.currentTime && 
-            event.timeFrame.endTime > this.currentTime
         );
     }
     
@@ -701,6 +877,9 @@ export class OfficeWorkerManager {
             space.state = SpaceState.AVAILABLE;
         });
         
+        // Create fresh events for the new day
+        this.createEvents(60 * 1000);
+        
         // Reset worker states
         this.workers.forEach(worker => {
             worker.occupiedDesk = {
@@ -726,10 +905,9 @@ export class OfficeWorkerManager {
             // Reset search attempts
             (worker as any).deskSearchAttempts = 0;
             
-            // Generate new random events
-            const totalSimulationTime = 60 * 1000; // 60 seconds
+            // Assign new events for the day
             worker.events = [];
-            this.generateRandomEvents(worker, totalSimulationTime);
+            this.assignEventsToWorker(worker);
             
             // Set initial destination based on mode
             if (this.isManaged && worker.assignedDesk) {
