@@ -118,6 +118,9 @@ export class Simulation {
                 this.workerManager.resetDay();
             }
             
+            // Update worker manager with current time
+            this.workerManager.setCurrentTime(this.simulationTime);
+            
             // Update worker positions and states
             this.workerManager.updateWorkers();
             

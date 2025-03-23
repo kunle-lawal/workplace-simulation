@@ -15,11 +15,17 @@ export enum WorkerMentalState {
     WANDERING: The worker is wandering around the office
     MOVING_TO_SPACE: The worker is moving to a space for their event
     WORKING: The worker is working at their desk or in meeting room
+    MOVING_TO_DESK: The worker is moving to a desk
+    ARRIVING: The worker is just entering the office
+    ATTENDING_EVENT: The worker is attending an event
 */
 export enum WorkerPhysicalState {
     WANDERING,
     MOVING_TO_SPACE,
-    WORKING
+    WORKING,
+    MOVING_TO_DESK,
+    ARRIVING,
+    ATTENDING_EVENT
 }
 
 export type Attendees = {
@@ -54,14 +60,39 @@ export enum DeskState {
     Desk type
     x: The x coordinate of the desk
     y: The y coordinate of the desk
+    destinationX: The x coordinate inside the desk for the worker to navigate to
+    destinationY: The y coordinate inside the desk for the worker to navigate to
     id: The id of the desk
     state: The state of the desk
+    occupiedBy: The ID of the worker currently occupying the desk, if any
 */
 export type Desk = {
     x: number,
     y: number,
+    destinationX: number,
+    destinationY: number,
     id: string,
-    state: DeskState
+    state: DeskState,
+    occupiedBy: string | null
+}
+
+export type DeskMap = {
+    [key: string]: Desk
+}
+
+export type Event = {
+    id: string,
+    title: string,
+    timeFrame: {
+        startTime: number, 
+        endTime: number
+    },
+    attendees: Attendees,
+    spaceForEvent: Space
+}
+
+export type EventMap = {
+    [key: string]: Event
 }
 
 /*
@@ -72,10 +103,22 @@ export type Desk = {
     state: The state of the space
 */
 export type Space = {
+    id: string,
     x: number,
     y: number,
-    id: string,
-    state: SpaceState
+    state: SpaceState,
+    destinationX?: number,
+    destinationY?: number
+}
+
+export type SpaceMap = {
+    [key: string]: Space
+}
+
+export type AllEvents = {
+    [key: string]: Event & {
+        spaceForEvent: Space
+    }
 }
 
 /*
@@ -89,6 +132,7 @@ export type Space = {
     mentalState: The mental state of the worker.
     physicalState: The physical state of the worker.
     events: The events that the worker is attending
+    nextEventTime: The time of the next event that the worker is attending
 */
 export type Worker = {
     id: string,
@@ -124,6 +168,7 @@ export type Worker = {
         x: number,
         y: number
     } | null,
+    nextEventTime: number | null,
     events: {
         id: string,
         title: string,
@@ -140,6 +185,10 @@ export type Worker = {
             currentStateOfSpace: SpaceState
         }
     }[],
+}
+
+export type WorkerMap = {
+    [key: string]: Worker
 }
 
 // Simulation mode

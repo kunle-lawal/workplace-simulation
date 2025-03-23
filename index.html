@@ -8,12 +8,156 @@
 </head>
 <body>
     <div class="container">
-        <h1>Office Simulation</h1>
-        <div class="controls">
-            <button id="toggle-mode">Mode: Chaotic (No Management)</button>
+        <div class="main-content">
+            <h1>Office Simulation</h1>
+            <div class="controls">
+                <button id="toggle-mode">Mode: Chaotic (No Management)</button>
+                <button id="highlight-worker">Highlight Selected Worker</button>
+            </div>
+            <canvas id="office-canvas" width="800" height="600"></canvas>
         </div>
-        <canvas id="office-canvas" width="800" height="600"></canvas>
+        
+        <div class="sidebar">
+            <!-- Simulation Info Card -->
+            <div class="simulation-info">
+                <h2>Simulation Info</h2>
+                <div class="info-container">
+                    <div class="info-row">
+                        <span>Current Time:</span> <span id="sim-time"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Day:</span> <span id="sim-day"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Total Workers:</span> <span id="sim-total-workers"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Mode:</span> <span id="sim-mode"></span>
+                    </div>
+                    
+                    <h3>Desk Information</h3>
+                    <div class="info-row">
+                        <span>Total Desks:</span> <span id="sim-total-desks"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Available:</span> <span id="sim-available-desks"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Assigned:</span> <span id="sim-assigned-desks"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Occupied:</span> <span id="sim-occupied-desks"></span>
+                    </div>
+                    
+                    <h3>Space Information</h3>
+                    <div class="info-row">
+                        <span>Total Spaces:</span> <span id="sim-total-spaces"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Available:</span> <span id="sim-available-spaces"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Assigned:</span> <span id="sim-assigned-spaces"></span>
+                    </div>
+                    <div class="info-row">
+                        <span>Occupied:</span> <span id="sim-occupied-spaces"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <h2>Office Workers</h2>
+            <div class="worker-list" id="worker-list">
+                <!-- Worker list items will be generated dynamically -->
+            </div>
+            
+            <div class="worker-info" id="worker-info">
+                <p id="no-selection-message">Select a worker to view details</p>
+                
+                <div id="worker-details" style="display: none;">
+                    <h3 id="worker-name">
+                        <span class="worker-color-dot" id="worker-color-dot"></span>
+                        <span id="worker-name-text"></span>
+                    </h3>
+                    
+                    <div class="worker-tab-container">
+                        <div class="worker-tabs">
+                            <button class="worker-tab active" data-tab="basic">Basic</button>
+                            <button class="worker-tab" data-tab="desk">Desk</button>
+                            <button class="worker-tab" data-tab="space">Space</button>
+                            <button class="worker-tab" data-tab="events">Events</button>
+                        </div>
+                        
+                        <div class="worker-tab-content active" id="tab-basic">
+                            <div class="worker-stat">
+                                <span>ID:</span> <span id="worker-id"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Position:</span> <span id="worker-position"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Mental State:</span> <span id="worker-mental-state"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Physical State:</span> <span id="worker-physical-state"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Current Activity:</span> <span id="worker-activity"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="worker-tab-content" id="tab-desk">
+                            <div class="worker-stat">
+                                <span>Has Assigned Desk:</span> <span id="worker-has-desk"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Assigned Desk ID:</span> <span id="worker-assigned-desk-id"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Last Occupied Desk:</span> <span id="worker-last-desk"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Last Occupied Time:</span> <span id="worker-last-desk-time"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Current Occupied Desk:</span> <span id="worker-current-desk"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Current Occupied Time:</span> <span id="worker-current-desk-time"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="worker-tab-content" id="tab-space">
+                            <div class="worker-stat">
+                                <span>Last Occupied Space:</span> <span id="worker-last-space"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Last Occupied Time:</span> <span id="worker-last-space-time"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Current Occupied Space:</span> <span id="worker-current-space"></span>
+                            </div>
+                            <div class="worker-stat">
+                                <span>Current Occupied Time:</span> <span id="worker-current-space-time"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="worker-tab-content" id="tab-events">
+                            <div id="worker-events-container">
+                                <p id="worker-no-events">No scheduled events</p>
+                                <!-- Events will be added dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="worker-navigation">
+                <button id="prev-worker">Previous</button>
+                <button id="next-worker">Next</button>
+            </div>
+        </div>
     </div>
+
     <script src="dist/index.js"></script>
 </body>
 </html>
