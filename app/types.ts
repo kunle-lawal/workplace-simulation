@@ -101,8 +101,8 @@ export type WorkerEvent = {
         startTime: number;
         endTime: number;
     };
-    attendees: Attendees;
-    spaceForEvent: Space;
+    attendeeIds: string[]; // Only IDs referencing Workers
+    spaceId: string;       // Reference by ID
 }
 
 export type WorkerEventMap = Record<string, WorkerEvent>
@@ -125,53 +125,46 @@ export type Space = {
 
 export type SpaceMap = Record<string, Space>
 
-export type AllEvents = Record<string, WorkerEvent & {
-    spaceForEvent: Space
-}>
+export type AllEvents = Record<string, WorkerEvent>
 
 /*
     Worker type
     id: The id of the worker
     name: The name of the worker
     location: The location of the worker
-    assignedDesk: The desk that the worker is assigned to at the start of the simulation/day
-    occupiedDesk: The desk that the worker is currently occupying or last occupied
-    occupiedSpace: The space that the worker is currently occupying or last occupied
+    workerEventIds: IDs of events the worker is attending
+    assignedDeskId: ID of the desk assigned to the worker
+    occupiedDesk: Records of current and last occupied desks by ID
+    occupiedSpace: Records of current and last occupied spaces by ID
     mentalState: The mental state of the worker.
     physicalState: The physical state of the worker.
-    events: The events that the worker is attending
+    destinationLocation: The location the worker is moving towards
     nextEventTime: The time of the next event that the worker is attending
+    dialog: The speech bubble for the worker
+    deskSearchAttempts?: Number of attempts made to find a desk
 */
 export type Worker = {
     id: string;
     name: string;
     location: Point;
-    assignedDesk: Desk | null;
+    workerEventIds: string[]; // Only IDs referencing WorkerEvents
+    assignedDeskId: string | null;
     occupiedDesk: {
-        lastOccupiedDesk: {
-            deskId: string;
-            time: number;
-        } | null;
-        currentOccupiedDesk: {
-            deskId: string;
-            time: number;
-        } | null;
+        lastOccupiedDeskId: string | null;
+        lastOccupiedTime: number | null;
+        currentOccupiedDeskId: string | null;
+        currentOccupiedTime: number | null;
     };
     occupiedSpace: {
-        lastOccupiedSpace: {
-            spaceId: string;
-            time: number;
-        } | null;
-        currentOccupiedSpace: {
-            spaceId: string;
-            time: number;
-        } | null;
+        lastOccupiedSpaceId: string | null;
+        lastOccupiedTime: number | null;
+        currentOccupiedSpaceId: string | null;
+        currentOccupiedTime: number | null;
     };
     mentalState: WorkerMentalState;
     physicalState: WorkerPhysicalState;
     destinationLocation: Point | null;
     nextEventTime: number | null;
-    events: WorkerEvent[];
     dialog: Dialog | null;
     deskSearchAttempts?: number;
 }

@@ -1,5 +1,5 @@
 import { Simulation } from './simulation';
-import { SimulationMode, Worker, WorkerMentalState, WorkerPhysicalState, DeskState, SpaceState } from './types';
+import { SimulationMode, Worker, WorkerMentalState, WorkerPhysicalState, DeskState, SpaceState, WorkerEvent } from './types';
 
 // Wait for the DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -284,13 +284,13 @@ function updateWorkerInfo(simulation: Simulation, worker: Worker | undefined): v
     updateBasicWorkerInfo(worker);
     
     // Desk info tab
-    updateDeskWorkerInfo(worker);
+    updateDeskWorkerInfo(simulation, worker);
     
     // Space info tab
-    updateSpaceWorkerInfo(worker);
+    updateSpaceWorkerInfo(simulation, worker);
     
     // Events info tab
-    updateEventsWorkerInfo(worker);
+    updateEventsWorkerInfo(simulation, worker);
 }
 
 function updateBasicWorkerInfo(worker: Worker): void {
@@ -349,89 +349,86 @@ function updateBasicWorkerInfo(worker: Worker): void {
     }
 }
 
-function updateDeskWorkerInfo(worker: Worker): void {
+function updateDeskWorkerInfo(simulation: Simulation, worker: Worker): void {
+    const desksMap = (simulation as any).workerManager.desksMap;
+
     // Update has desk
     const deskElement = document.getElementById('worker-has-desk');
     if (deskElement) {
-        deskElement.textContent = worker.assignedDesk ? 'Yes' : 'No';
+        deskElement.textContent = worker.assignedDeskId ? 'Yes' : 'No';
     }
     
     // Update assigned desk ID
     const assignedDeskIdElement = document.getElementById('worker-assigned-desk-id');
     if (assignedDeskIdElement) {
-        assignedDeskIdElement.textContent = worker.assignedDesk ? worker.assignedDesk.id : 'None';
+        assignedDeskIdElement.textContent = worker.assignedDeskId || 'None';
     }
     
     // Update last occupied desk
     const lastDeskElement = document.getElementById('worker-last-desk');
     if (lastDeskElement) {
-        lastDeskElement.textContent = worker.occupiedDesk.lastOccupiedDesk 
-            ? worker.occupiedDesk.lastOccupiedDesk.deskId 
-            : 'None';
+        lastDeskElement.textContent = worker.occupiedDesk.lastOccupiedDeskId || 'None';
     }
     
     // Update last occupied desk time
     const lastDeskTimeElement = document.getElementById('worker-last-desk-time');
     if (lastDeskTimeElement) {
-        lastDeskTimeElement.textContent = worker.occupiedDesk.lastOccupiedDesk 
-            ? formatSimulationTime(worker.occupiedDesk.lastOccupiedDesk.time)
+        lastDeskTimeElement.textContent = worker.occupiedDesk.lastOccupiedTime 
+            ? formatSimulationTime(worker.occupiedDesk.lastOccupiedTime)
             : 'N/A';
     }
     
     // Update current occupied desk
     const currentDeskElement = document.getElementById('worker-current-desk');
     if (currentDeskElement) {
-        currentDeskElement.textContent = worker.occupiedDesk.currentOccupiedDesk 
-            ? worker.occupiedDesk.currentOccupiedDesk.deskId 
-            : 'None';
+        currentDeskElement.textContent = worker.occupiedDesk.currentOccupiedDeskId || 'None';
     }
     
     // Update current occupied desk time
     const currentDeskTimeElement = document.getElementById('worker-current-desk-time');
     if (currentDeskTimeElement) {
-        currentDeskTimeElement.textContent = worker.occupiedDesk.currentOccupiedDesk 
-            ? formatSimulationTime(worker.occupiedDesk.currentOccupiedDesk.time)
+        currentDeskTimeElement.textContent = worker.occupiedDesk.currentOccupiedTime 
+            ? formatSimulationTime(worker.occupiedDesk.currentOccupiedTime)
             : 'N/A';
     }
 }
 
-function updateSpaceWorkerInfo(worker: Worker): void {
+function updateSpaceWorkerInfo(simulation: Simulation, worker: Worker): void {
+    const spacesMap = (simulation as any).workerManager.spacesMap;
+
     // Update last occupied space
     const lastSpaceElement = document.getElementById('worker-last-space');
     if (lastSpaceElement) {
-        lastSpaceElement.textContent = worker.occupiedSpace.lastOccupiedSpace 
-            ? worker.occupiedSpace.lastOccupiedSpace.spaceId 
-            : 'None';
+        lastSpaceElement.textContent = worker.occupiedSpace.lastOccupiedSpaceId || 'None';
     }
     
     // Update last occupied space time
     const lastSpaceTimeElement = document.getElementById('worker-last-space-time');
     if (lastSpaceTimeElement) {
-        lastSpaceTimeElement.textContent = worker.occupiedSpace.lastOccupiedSpace 
-            ? formatSimulationTime(worker.occupiedSpace.lastOccupiedSpace.time)
+        lastSpaceTimeElement.textContent = worker.occupiedSpace.lastOccupiedTime 
+            ? formatSimulationTime(worker.occupiedSpace.lastOccupiedTime)
             : 'N/A';
     }
     
     // Update current occupied space
     const currentSpaceElement = document.getElementById('worker-current-space');
     if (currentSpaceElement) {
-        currentSpaceElement.textContent = worker.occupiedSpace.currentOccupiedSpace 
-            ? worker.occupiedSpace.currentOccupiedSpace.spaceId 
-            : 'None';
+        currentSpaceElement.textContent = worker.occupiedSpace.currentOccupiedSpaceId || 'None';
     }
     
     // Update current occupied space time
     const currentSpaceTimeElement = document.getElementById('worker-current-space-time');
     if (currentSpaceTimeElement) {
-        currentSpaceTimeElement.textContent = worker.occupiedSpace.currentOccupiedSpace 
-            ? formatSimulationTime(worker.occupiedSpace.currentOccupiedSpace.time)
+        currentSpaceTimeElement.textContent = worker.occupiedSpace.currentOccupiedTime 
+            ? formatSimulationTime(worker.occupiedSpace.currentOccupiedTime)
             : 'N/A';
     }
 }
 
-function updateEventsWorkerInfo(worker: Worker): void {
+function updateEventsWorkerInfo(simulation: Simulation, worker: Worker): void {
     const eventsContainer = document.getElementById('worker-events-container');
     const noEventsMessage = document.getElementById('worker-no-events');
+    const eventsMap = (simulation as any).workerManager.events;
     
     if (!eventsContainer || !noEventsMessage) return;
     
@@ -450,7 +447,7 @@ function updateEventsWorkerInfo(worker: Worker): void {
     });
     
     // Show or hide no events message
-    if (!worker.events || worker.events.length === 0) {
+    if (!worker.workerEventIds || worker.workerEventIds.length === 0) {
         noEventsMessage.style.display = 'block';
         return;
     }
@@ -458,19 +455,24 @@ function updateEventsWorkerInfo(worker: Worker): void {
     noEventsMessage.style.display = 'none';
     
     // Add each event
-    worker.events.forEach(event => {
+    worker.workerEventIds.forEach(eventId => {
+        const event = eventsMap[eventId];
+        if (!event) return;
+
         const eventElement = document.createElement('div');
         eventElement.className = 'event-item';
         
         const startTime = formatSimulationTime(event.timeFrame.startTime);
         const endTime = formatSimulationTime(event.timeFrame.endTime);
         
+        // Get space information if available
+        const space = event.spaceId ? (simulation as any).workerManager.spacesMap[event.spaceId] : null;
+        const spaceLocation = space ? `(${Math.round(space.x)}, ${Math.round(space.y)})` : 'Unknown';
+        
         eventElement.innerHTML = `
             <div class="event-title">${event.title}</div>
             <div class="event-time">Time: ${startTime} - ${endTime}</div>
-            <div class="event-space">Space: ${event.spaceForEvent 
-                ? `(${Math.round(event.spaceForEvent.x)}, ${Math.round(event.spaceForEvent.y)})`
-                : 'Unknown'}</div>
+            <div class="event-space">Space: ${spaceLocation}</div>
         `;
         
         eventsContainer.appendChild(eventElement);
