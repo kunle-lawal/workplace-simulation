@@ -429,6 +429,11 @@ export class OfficeWorkerManager {
                         // Event ended, update worker state
                         worker.physicalState = WorkerPhysicalState.WANDERING;
                         
+                        // Initialize desk search attempts if not already set
+                        if (!(worker as any).deskSearchAttempts) {
+                            (worker as any).deskSearchAttempts = 0;
+                        }
+                        
                         // Try to return to the last occupied desk
                         if (worker.occupiedDesk.lastOccupiedDesk) {
                             const deskId = worker.occupiedDesk.lastOccupiedDesk.deskId;
@@ -441,16 +446,22 @@ export class OfficeWorkerManager {
                                     y: desk.destinationY
                                 };
                                 worker.physicalState = WorkerPhysicalState.MOVING_TO_DESK;
+                                // Reset desk search attempts on successful desk find
+                                (worker as any).deskSearchAttempts = 0;
                             } else if (desk && desk.state !== DeskState.AVAILABLE) {
                                 // Last desk is occupied, worker is confused
                                 worker.mentalState = WorkerMentalState.CONFUSED;
+                                // Increment search attempts and try to find another desk
+                                (worker as any).deskSearchAttempts++;
                                 this.findDeskForWorker(worker);
                             } else {
                                 // Find a new desk
+                                (worker as any).deskSearchAttempts++;
                                 this.findDeskForWorker(worker);
                             }
                         } else {
                             // No last desk, find a new one
+                            (worker as any).deskSearchAttempts++;
                             this.findDeskForWorker(worker);
                         }
                         
@@ -502,16 +513,25 @@ export class OfficeWorkerManager {
             }
         }
         
-        // Random mood changes for workers who are wandering
-        if (worker.physicalState === WorkerPhysicalState.WANDERING && Math.random() < 0.01) {
-            // 1% chance of mood change for wandering workers
-            const moodRoll = Math.random();
-            if (moodRoll < 0.6) {
-                worker.mentalState = WorkerMentalState.FRUSTRATED;
-            } else if (moodRoll < 0.8) {
-                worker.mentalState = WorkerMentalState.CONFUSED;
-            } else {
-                worker.mentalState = WorkerMentalState.HAPPY;
+        // Check if worker is wandering and is frustrated due to desk search failures
+        if (worker.physicalState === WorkerPhysicalState.WANDERING) {
+            // Occasionally try to find a desk again if frustrated
+            if (worker.mentalState === WorkerMentalState.FRUSTRATED && Math.random() < 0.005) { // ~0.5% chance per frame
+                // Reset desk search attempts and try again
+                (worker as any).deskSearchAttempts = 0;
+                this.findDeskForWorker(worker);
+            }
+            // Random mood changes for workers who are wandering
+            else if (Math.random() < 0.01) {
+                // 1% chance of mood change for wandering workers
+                const moodRoll = Math.random();
+                if (moodRoll < 0.6) {
+                    worker.mentalState = WorkerMentalState.FRUSTRATED;
+                } else if (moodRoll < 0.8) {
+                    worker.mentalState = WorkerMentalState.CONFUSED;
+                } else {
+                    worker.mentalState = WorkerMentalState.HAPPY;
+                }
             }
         }
     }
@@ -591,6 +611,14 @@ export class OfficeWorkerManager {
      * Find an available desk for a worker
      */
     private findDeskForWorker(worker: Worker): void {
+        // If worker has tried 3 times to find a desk and failed, set state to frustrated and wander
+        if ((worker as any).deskSearchAttempts >= 3) {
+            worker.mentalState = WorkerMentalState.FRUSTRATED;
+            worker.physicalState = WorkerPhysicalState.WANDERING;
+            this.setRandomDestination(worker);
+            return;
+        }
+        
         const availableDesks = this.desks.filter(desk => 
             desk.state === DeskState.AVAILABLE || 
             (desk.state === DeskState.ASSIGNED && desk.occupiedBy === worker.id)
@@ -607,6 +635,8 @@ export class OfficeWorkerManager {
                         y: assignedDesk.destinationY
                     };
                     worker.physicalState = WorkerPhysicalState.MOVING_TO_DESK;
+                    // Reset desk search attempts on successful desk find
+                    (worker as any).deskSearchAttempts = 0;
                     return;
                 }
             }
@@ -620,10 +650,23 @@ export class OfficeWorkerManager {
                 y: desk.destinationY
             };
             worker.physicalState = WorkerPhysicalState.MOVING_TO_DESK;
+            // Reset desk search attempts on successful desk find
+            (worker as any).deskSearchAttempts = 0;
         } else {
-            // No available desks, worker is frustrated
-            worker.mentalState = WorkerMentalState.FRUSTRATED;
-            worker.physicalState = WorkerPhysicalState.WANDERING;
+            // No available desks, increment search attempts
+            (worker as any).deskSearchAttempts = (worker as any).deskSearchAttempts || 0;
+            (worker as any).deskSearchAttempts++;
+            
+            // If worker has tried 3 times, set state to frustrated
+            if ((worker as any).deskSearchAttempts >= 3) {
+                worker.mentalState = WorkerMentalState.FRUSTRATED;
+                worker.physicalState = WorkerPhysicalState.WANDERING;
+            } else {
+                // Not yet reached 3 attempts, still confused
+                worker.mentalState = WorkerMentalState.CONFUSED;
+                worker.physicalState = WorkerPhysicalState.WANDERING;
+            }
+            
             this.setRandomDestination(worker);
         }
     }
@@ -679,6 +722,9 @@ export class OfficeWorkerManager {
             worker.physicalState = WorkerPhysicalState.ARRIVING;
             worker.mentalState = WorkerMentalState.HAPPY;
             worker.destinationLocation = null;
+            
+            // Reset search attempts
+            (worker as any).deskSearchAttempts = 0;
             
             // Generate new random events
             const totalSimulationTime = 60 * 1000; // 60 seconds
