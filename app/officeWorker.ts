@@ -1,5 +1,64 @@
-import { Worker, Desk, Space, WorkerMentalState, WorkerPhysicalState, DeskState, SpaceState, DeskMap, WorkerEventMap, SpaceMap, WorkerMap, WorkerEvent } from './types';
+import { Worker, Desk, Space, WorkerMentalState, WorkerPhysicalState, DeskState, SpaceState, DeskMap, WorkerEventMap, SpaceMap, WorkerMap, WorkerEvent, Dialog } from './types';
 import { generateId, getRandomDestination, moveWorkerTowardsDestination, getRandomNumber } from './utils';
+
+// Dialog phrases for different worker states and actions
+const DIALOG_PHRASES = {
+    DESK_OCCUPIED: [
+        "Someone's sitting here already!",
+        "This desk is taken.",
+        "I need to find another desk.",
+        "Excuse me, I thought this was free."
+    ],
+    SPACE_OCCUPIED: [
+        "This room is occupied!",
+        "Shoot, room is taken. I'll find another.",
+        "Wrong meeting room.",
+        "Is there another space available?"
+    ],
+    FRUSTRATED: [
+        "I can't find a desk anywhere!",
+        "This is ridiculous...",
+        "I just want to sit down!",
+        "Third desk that's taken, seriously?!",
+        "Where am I supposed to work?!"
+    ],
+    CONFUSED: [
+        "Where was I sitting again?",
+        "I'm a bit lost...",
+        "Which desk was mine?",
+        "I swear I was sitting here."
+    ],
+    HAPPY: [
+        "Great spot!",
+        "Perfect, got my desk!",
+        "Time to get some work done.",
+        "Coffee and coding time!"
+    ],
+    WANDERING: [
+        "Just stretching my legs.",
+        "Looking around...",
+        "Taking a little walk.",
+        "Need some fresh perspective."
+    ],
+    EVENT_STARTING: [
+        "Meeting time!",
+        "Off to my event!",
+        "Gotta run to a meeting.",
+        "Time for that presentation."
+    ],
+    EVENT_ENDING: [
+        "That meeting could have been an email.",
+        "Finally, meeting's over!",
+        "Back to my desk now.",
+        "One meeting down, more to go."
+    ],
+    SHARED_EVENT: [
+        "I'm here for the same meeting!",
+        "We're in this meeting together.",
+        "Glad to join the team.",
+        "Looks like we're collaborating."
+    ]
+};
 
 export class OfficeWorkerManager {
     private workers: Worker[] = [];
@@ -191,8 +250,14 @@ export class OfficeWorkerManager {
                 physicalState: WorkerPhysicalState.ARRIVING,
                 destinationLocation: null,
                 nextEventTime: null,
-                events: []
+                events: [],
+                dialog: {
+                    text: `Hello, I'm ${workerNames[i % workerNames.length]}!`,
+                    duration: 60000, // 60 seconds in milliseconds
+                    startTime: 0
+                }
             };
+            
             
             // In managed mode, assign desks to workers
             if (this.isManaged && worker.assignedDesk) {
@@ -320,7 +385,34 @@ export class OfficeWorkerManager {
                     this.handleWorkerArrival(worker);
                 }
             }
+            
+            // Update worker dialog (check if it should expire)
+            this.updateWorkerDialog(worker);
         });
+    }
+    
+    /**
+     * Update worker dialog (check expiration)
+     */
+    private updateWorkerDialog(worker: Worker): void {
+        if (!worker.dialog) return;
+        
+        const elapsedTime = this.currentTime - worker.dialog.startTime;
+        if (elapsedTime > worker.dialog.duration) {
+            worker.dialog = null;
+        }
+    }
+    
+    /**
+     * Set a dialog message for a worker
+     */
+    private setWorkerDialog(worker: Worker, text: string, duration = 5): void {
+        worker.dialog = {
+            text,
+            duration,
+            startTime: this.currentTime,
+        };
+        console.log(`Dialog set for ${worker.name}: "${text}" with duration ${duration}s`);
     }
     
     /**
@@ -346,6 +438,11 @@ export class OfficeWorkerManager {
             case WorkerPhysicalState.WANDERING:
                 // Just set a new random destination
                 this.setRandomDestination(worker);
+                
+                // Increase chances of showing wandering dialog (from 0.2 to 0.5)
+                if (Math.random() < 0.5) {
+                    this.setWorkerDialog(worker, 'WANDERING');
+                }
                 break;
         }
     }
@@ -374,6 +471,9 @@ export class OfficeWorkerManager {
             worker.physicalState = WorkerPhysicalState.WORKING;
             worker.mentalState = WorkerMentalState.HAPPY;
             
+            // Show happy dialog
+            this.setWorkerDialog(worker, 'HAPPY');
+            
             // Update worker's occupied desk
             worker.occupiedDesk.currentOccupiedDesk = {
                 deskId: desk.id,
@@ -382,6 +482,9 @@ export class OfficeWorkerManager {
         } else {
             // Desk is occupied or assigned to another worker
             worker.mentalState = WorkerMentalState.CONFUSED;
+            
+            // Show desk occupied dialog
+            this.setWorkerDialog(worker, 'DESK_OCCUPIED');
             
             // Try to find another desk
             this.findDeskForWorker(worker);
@@ -397,7 +500,6 @@ export class OfficeWorkerManager {
         
         if (!currentEvent) {
             // No current event, worker is lost, set them to wandering
-            console.log(`Worker ${worker.id} (${worker.name}) arrived at space but has no event`);
             worker.physicalState = WorkerPhysicalState.WANDERING;
             this.setRandomDestination(worker);
             return;
@@ -408,7 +510,6 @@ export class OfficeWorkerManager {
         
         if (!space) {
             // No space found, worker is lost, set them to wandering
-            console.log(`Worker ${worker.id} (${worker.name}) couldn't find space at location`);
             worker.physicalState = WorkerPhysicalState.WANDERING;
             this.setRandomDestination(worker);
             return;
@@ -421,21 +522,25 @@ export class OfficeWorkerManager {
             
             // If worker has the same event, they can join
             if (spaceEvent && spaceEvent.id === currentEvent.id) {
-                console.log(`Worker ${worker.id} (${worker.name}) joining shared event ${currentEvent.id} in space ${space.id}`);
                 worker.physicalState = WorkerPhysicalState.ATTENDING_EVENT;
                 worker.occupiedSpace.currentOccupiedSpace = {
                     spaceId: space.id,
                     time: this.currentTime
                 };
+                
+                // Show shared event dialog
+                this.setWorkerDialog(worker, 'SHARED_EVENT');
             } else {
                 // Space is occupied by a different event, try to find another space
-                console.log(`Worker ${worker.id} (${worker.name}) found space ${space.id} occupied by different event, looking for another`);
                 worker.mentalState = WorkerMentalState.CONFUSED;
+                
+                // Show space occupied dialog
+                this.setWorkerDialog(worker, 'SPACE_OCCUPIED');
+                
                 this.findSpaceForWorkerEvent(worker, currentEvent);
             }
         } else {
             // Space is available, worker can occupy it
-            console.log(`Worker ${worker.id} (${worker.name}) occupying space ${space.id} for event ${currentEvent.id}`);
             space.state = SpaceState.OCCUPIED;
             worker.physicalState = WorkerPhysicalState.ATTENDING_EVENT;
             worker.occupiedSpace.currentOccupiedSpace = {
@@ -486,7 +591,6 @@ export class OfficeWorkerManager {
             // Check if the space is still available
             const space = this.getSpaceById(event.spaceForEvent.id);
             if (space && space.state === SpaceState.AVAILABLE) {
-                console.log(`Worker ${worker.id} (${worker.name}) going to event's assigned space ${space.id}`);
                 worker.destinationLocation = {
                     x: space.destinationX || space.x,
                     y: space.destinationY || space.y
@@ -512,7 +616,6 @@ export class OfficeWorkerManager {
                     const attendeeSpace = this.getSpaceById(attendeeSpaceId);
                     
                     if (attendeeSpace) {
-                        console.log(`Worker ${worker.id} (${worker.name}) going to join attendee at space ${attendeeSpace.id}`);
                         // Go to this space to join the event
                         worker.destinationLocation = {
                             x: attendeeSpace.destinationX || attendeeSpace.x,
@@ -528,7 +631,6 @@ export class OfficeWorkerManager {
             const randomIndex = Math.floor(Math.random() * availableSpaces.length);
             const space = availableSpaces[randomIndex];
             
-            console.log(`Worker ${worker.id} (${worker.name}) going to random available space ${space.id}`);
             worker.destinationLocation = {
                 x: space.destinationX || space.x,
                 y: space.destinationY || space.y
@@ -536,7 +638,6 @@ export class OfficeWorkerManager {
             worker.physicalState = WorkerPhysicalState.MOVING_TO_SPACE;
         } else {
             // No available spaces, worker is frustrated and goes back to desk
-            console.log(`Worker ${worker.id} (${worker.name}) found no available spaces, returning to desk`);
             worker.mentalState = WorkerMentalState.FRUSTRATED;
             
             // Try to return to the last occupied desk
@@ -546,7 +647,6 @@ export class OfficeWorkerManager {
                 
                 if (desk && desk.state === DeskState.AVAILABLE) {
                     // Last desk is available, go to it
-                    console.log(`Worker ${worker.id} (${worker.name}) returning to last desk ${deskId}`);
                     worker.destinationLocation = {
                         x: desk.destinationX,
                         y: desk.destinationY
@@ -558,7 +658,6 @@ export class OfficeWorkerManager {
                 }
             } else {
                 // No last desk, find a new one
-                console.log(`Worker ${worker.id} (${worker.name}) has no last desk, seeking new desk`);
                 this.findDeskForWorker(worker);
             }
         }
@@ -587,7 +686,9 @@ export class OfficeWorkerManager {
             
             // If no current event is found, or the event has ended
             if (!currentEvent || this.currentTime > currentEvent.timeFrame.endTime) {
-                console.log(`Worker ${worker.id} (${worker.name}) event ended, leaving space`);
+                
+                // Show event ending dialog
+                this.setWorkerDialog(worker, 'EVENT_ENDING');
                 
                 // Initialize desk search attempts if not already set
                 if (!(worker as any).deskSearchAttempts) {
@@ -626,7 +727,6 @@ export class OfficeWorkerManager {
                     
                     if (desk && desk.state === DeskState.AVAILABLE) {
                         // Last desk is available, go to it
-                        console.log(`Worker ${worker.id} (${worker.name}) returning to last desk ${deskId}`);
                         worker.destinationLocation = {
                             x: desk.destinationX,
                             y: desk.destinationY
@@ -636,22 +736,23 @@ export class OfficeWorkerManager {
                         (worker as any).deskSearchAttempts = 0;
                     } else if (desk && desk.state !== DeskState.AVAILABLE) {
                         // Last desk is occupied, worker is confused
-                        console.log(`Worker ${worker.id} (${worker.name}) found last desk ${deskId} occupied, seeking new desk`);
                         worker.mentalState = WorkerMentalState.CONFUSED;
                         worker.physicalState = WorkerPhysicalState.WANDERING;
+                        
+                        // Show confused dialog
+                        this.setWorkerDialog(worker, "Someone took my desk!", 5);
+                        
                         // Increment search attempts and try to find another desk
                         (worker as any).deskSearchAttempts++;
                         this.findDeskForWorker(worker);
                     } else {
                         // Desk not found, find a new one
-                        console.log(`Worker ${worker.id} (${worker.name}) last desk ${deskId} not found, seeking new desk`);
                         (worker as any).deskSearchAttempts++;
                         worker.physicalState = WorkerPhysicalState.WANDERING;
                         this.findDeskForWorker(worker);
                     }
                 } else {
                     // No last desk, find a new one
-                    console.log(`Worker ${worker.id} (${worker.name}) has no last desk, seeking new desk`);
                     (worker as any).deskSearchAttempts++;
                     worker.physicalState = WorkerPhysicalState.WANDERING;
                     this.findDeskForWorker(worker);
@@ -672,7 +773,9 @@ export class OfficeWorkerManager {
                 // If time until next event is between 1-10 minutes (simulated)
                 if (timeUntilEvent > 0 && timeUntilEvent <= this.getRandomPreEventTime()) {
                     // Worker needs to go to the event
-                    console.log(`Worker ${worker.id} (${worker.name}) heading to event ${nextEvent.id}`);
+                    
+                    // Show event starting dialog
+                    this.setWorkerDialog(worker, 'EVENT_STARTING');
                     
                     // If worker is at a desk, update desk state
                     if (worker.physicalState === WorkerPhysicalState.WORKING && worker.occupiedDesk.currentOccupiedDesk) {
@@ -701,24 +804,61 @@ export class OfficeWorkerManager {
         // Check if worker is wandering and is frustrated due to desk search failures
         if (worker.physicalState === WorkerPhysicalState.WANDERING) {
             // Occasionally try to find a desk again if frustrated
-            if (worker.mentalState === WorkerMentalState.FRUSTRATED && Math.random() < 0.005) { // ~0.5% chance per frame
-                // Reset desk search attempts and try again
-                console.log(`Worker ${worker.id} (${worker.name}) is frustrated and looking for a desk again`);
-                (worker as any).deskSearchAttempts = 0;
-                this.findDeskForWorker(worker);
+            if (worker.mentalState === WorkerMentalState.FRUSTRATED) {
+                // Show frustrated dialog occasionally (increased from 0.01 to 0.03)
+                if (Math.random() < 0.03) { // 3% chance per frame
+                    this.setWorkerDialog(worker, 'FRUSTRATED');
+                }
+                
+                // Try to find desk again
+                if (Math.random() < 0.005) { // ~0.5% chance per frame
+                    // Reset desk search attempts and try again
+                    (worker as any).deskSearchAttempts = 0;
+                    this.findDeskForWorker(worker);
+                }
             }
             // Random mood changes for workers who are wandering
-            else if (Math.random() < 0.01) {
-                // 1% chance of mood change for wandering workers
+            else if (Math.random() < 0.02) { // Increased from 0.01 to 0.02
+                // 2% chance of mood change for wandering workers
                 const moodRoll = Math.random();
                 if (moodRoll < 0.6) {
                     worker.mentalState = WorkerMentalState.FRUSTRATED;
+                    // Show frustrated dialog
+                    this.setWorkerDialog(worker, 'FRUSTRATED');
                 } else if (moodRoll < 0.8) {
                     worker.mentalState = WorkerMentalState.CONFUSED;
+                    // Show confused dialog
+                    this.setWorkerDialog(worker, 'CONFUSED');
                 } else {
                     worker.mentalState = WorkerMentalState.HAPPY;
+                    // Occasionally show wandering dialog (increased from 0.3 to 0.7)
+                    if (Math.random() < 0.7) {
+                        this.setWorkerDialog(worker, 'WANDERING');
+                    }
                 }
             }
+            console.log({worker});
+            // Add random dialogs for wandering workers regardless of state
+            if (!worker.dialog && Math.random() < 0.01) { // 1% chance per frame
+                // Pick a dialog type based on mental state
+                let dialogType: keyof typeof DIALOG_PHRASES;
+                switch (worker.mentalState) {
+                    case WorkerMentalState.FRUSTRATED:
+                        dialogType = 'FRUSTRATED';
+                        break;
+                    case WorkerMentalState.CONFUSED:
+                        dialogType = 'CONFUSED';
+                        break;
+                    default:
+                        dialogType = 'WANDERING';
+                }
+                this.setWorkerDialog(worker, dialogType);
+            }
+        }
+        
+        // For working workers, occasionally show happy dialogs
+        if (worker.physicalState === WorkerPhysicalState.WORKING && !worker.dialog && Math.random() < 0.005) {
+            this.setWorkerDialog(worker, 'HAPPY');
         }
     }
     
@@ -791,6 +931,10 @@ export class OfficeWorkerManager {
         if ((worker as any).deskSearchAttempts >= 3) {
             worker.mentalState = WorkerMentalState.FRUSTRATED;
             worker.physicalState = WorkerPhysicalState.WANDERING;
+            
+            // Show frustrated dialog
+            this.setWorkerDialog(worker, 'FRUSTRATED');
+            
             this.setRandomDestination(worker);
             return;
         }
@@ -837,10 +981,16 @@ export class OfficeWorkerManager {
             if ((worker as any).deskSearchAttempts >= 3) {
                 worker.mentalState = WorkerMentalState.FRUSTRATED;
                 worker.physicalState = WorkerPhysicalState.WANDERING;
+                
+                // Show frustrated dialog
+                this.setWorkerDialog(worker, 'FRUSTRATED');
             } else {
                 // Not yet reached 3 attempts, still confused
                 worker.mentalState = WorkerMentalState.CONFUSED;
                 worker.physicalState = WorkerPhysicalState.WANDERING;
+                
+                // Show confused dialog
+                this.setWorkerDialog(worker, 'CONFUSED');
             }
             
             this.setRandomDestination(worker);
@@ -901,6 +1051,7 @@ export class OfficeWorkerManager {
             worker.physicalState = WorkerPhysicalState.ARRIVING;
             worker.mentalState = WorkerMentalState.HAPPY;
             worker.destinationLocation = null;
+            worker.dialog = null; // Reset dialog
             
             // Reset search attempts
             (worker as any).deskSearchAttempts = 0;

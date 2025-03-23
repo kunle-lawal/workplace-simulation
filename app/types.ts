@@ -5,9 +5,9 @@
     CONFUSED: The worker is confused when they try to rebook their desk or meeting room but it's already occupied
 */
 export enum WorkerMentalState {
-    FRUSTRATED,
-    HAPPY,
-    CONFUSED
+    FRUSTRATED = 'FRUSTRATED',
+    HAPPY = 'HAPPY',
+    CONFUSED = 'CONFUSED'
 }
 
 /*
@@ -20,13 +20,29 @@ export enum WorkerMentalState {
     ATTENDING_EVENT: The worker is attending an event
 */
 export enum WorkerPhysicalState {
-    WANDERING,
-    MOVING_TO_SPACE,
-    WORKING,
-    MOVING_TO_DESK,
-    ARRIVING,
-    ATTENDING_EVENT
+    WANDERING = 'WANDERING',
+    MOVING_TO_SPACE = 'MOVING_TO_SPACE',
+    WORKING = 'WORKING',
+    MOVING_TO_DESK = 'MOVING_TO_DESK',
+    ARRIVING = 'ARRIVING',
+    ATTENDING_EVENT = 'ATTENDING_EVENT'
 }
+
+/**
+ * Point type - Represents a 2D coordinate
+ */
+export type Point = {
+    x: number;
+    y: number;
+};
+
+/**
+ * Location type - Represents a position with destination coordinates
+ */
+export type Location = Point & {
+    destinationX: number;
+    destinationY: number;
+};
 
 export type Attendees = {
     worker: Worker[]
@@ -39,9 +55,9 @@ export type Attendees = {
     ASSIGNED: The space is assigned to a worker's event
 */
 export enum SpaceState {
-    AVAILABLE,
-    OCCUPIED,
-    ASSIGNED,
+    AVAILABLE = 'AVAILABLE',
+    OCCUPIED = 'OCCUPIED',
+    ASSIGNED = 'ASSIGNED',
 }
 
 /*
@@ -51,9 +67,9 @@ export enum SpaceState {
     ASSIGNED: The desk is assigned to a worker at the start of the simulation/day
 */
 export enum DeskState {
-    AVAILABLE,
-    ASSIGNED,
-    OCCUPIED,
+    AVAILABLE = 'AVAILABLE',
+    ASSIGNED = 'ASSIGNED',
+    OCCUPIED = 'OCCUPIED',
 }
 
 /*
@@ -67,33 +83,29 @@ export enum DeskState {
     occupiedBy: The ID of the worker currently occupying the desk, if any
 */
 export type Desk = {
-    x: number,
-    y: number,
-    destinationX: number,
-    destinationY: number,
-    id: string,
-    state: DeskState,
-    occupiedBy: string | null
+    x: number;
+    y: number;
+    destinationX: number;
+    destinationY: number;
+    id: string;
+    state: DeskState;
+    occupiedBy: string | null;
 }
 
-export type DeskMap = {
-    [key: string]: Desk
-}
+export type DeskMap = Record<string, Desk>
 
 export type WorkerEvent = {
-    id: string,
-    title: string,
+    id: string;
+    title: string;
     timeFrame: {
-        startTime: number, 
-        endTime: number
-    },
-    attendees: Attendees,
-    spaceForEvent: Space
+        startTime: number;
+        endTime: number;
+    };
+    attendees: Attendees;
+    spaceForEvent: Space;
 }
 
-export type WorkerEventMap = {
-    [key: string]: WorkerEvent
-}
+export type WorkerEventMap = Record<string, WorkerEvent>
 
 /*
     Space type
@@ -103,23 +115,19 @@ export type WorkerEventMap = {
     state: The state of the space
 */
 export type Space = {
-    id: string,
-    x: number,
-    y: number,
-    state: SpaceState,
-    destinationX?: number,
-    destinationY?: number
+    id: string;
+    x: number;
+    y: number;
+    state: SpaceState;
+    destinationX?: number;
+    destinationY?: number;
 }
 
-export type SpaceMap = {
-    [key: string]: Space
-}
+export type SpaceMap = Record<string, Space>
 
-export type AllEvents = {
-    [key: string]: WorkerEvent & {
-        spaceForEvent: Space
-    }
-}
+export type AllEvents = Record<string, WorkerEvent & {
+    spaceForEvent: Space
+}>
 
 /*
     Worker type
@@ -135,49 +143,55 @@ export type AllEvents = {
     nextEventTime: The time of the next event that the worker is attending
 */
 export type Worker = {
-    id: string,
-    name: string,
-    location: {
-        x: number, 
-        y: number
-    },
-    assignedDesk: Desk | null,
+    id: string;
+    name: string;
+    location: Point;
+    assignedDesk: Desk | null;
     occupiedDesk: {
         lastOccupiedDesk: {
-            deskId: string,
-            time: number
-        } | null,
+            deskId: string;
+            time: number;
+        } | null;
         currentOccupiedDesk: {
-            deskId: string,
-            time: number
-        } | null
-    },
+            deskId: string;
+            time: number;
+        } | null;
+    };
     occupiedSpace: {
         lastOccupiedSpace: {
-            spaceId: string,
-            time: number
-        } | null,
+            spaceId: string;
+            time: number;
+        } | null;
         currentOccupiedSpace: {
-            spaceId: string,
-            time: number
-        } | null
-    },
-    mentalState: WorkerMentalState,
-    physicalState: WorkerPhysicalState,
-    destinationLocation: {
-        x: number,
-        y: number
-    } | null,
-    nextEventTime: number | null,
-    events: WorkerEvent[],
+            spaceId: string;
+            time: number;
+        } | null;
+    };
+    mentalState: WorkerMentalState;
+    physicalState: WorkerPhysicalState;
+    destinationLocation: Point | null;
+    nextEventTime: number | null;
+    events: WorkerEvent[];
+    dialog: Dialog | null;
+    deskSearchAttempts?: number;
 }
 
-export type WorkerMap = {
-    [key: string]: Worker
+export type WorkerMap = Record<string, Worker>
+
+/**
+ * Dialog type for worker speech bubbles
+ * text: The text content of the dialog
+ * duration: How long to show the dialog (in ms)
+ * startTime: When the dialog started showing
+ */
+export type Dialog = {
+    text: string;
+    duration: number;
+    startTime: number;
 }
 
 // Simulation mode
 export enum SimulationMode {
-    CHAOTIC,
-    MANAGED
+    CHAOTIC = 'CHAOTIC',
+    MANAGED = 'MANAGED'
 } 
