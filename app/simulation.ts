@@ -8,7 +8,10 @@ import { getRandomColor } from "./utils";
  */
 const SIMULATION_CONSTANTS = {
     DAY_DURATION_MS: 60 * 1000, // 60 seconds for a full day
-    STARTING_DAY: 1
+    STARTING_DAY: 1,
+    WORK_HOURS: 9, // 8:00 to 17:00 = 9 hours
+    START_HOUR: 8, // Start at 8:00
+    END_HOUR: 17   // End at 17:00
 };
 
 /**
@@ -240,10 +243,13 @@ export class Simulation {
     }
     
     /**
-     * Get the current simulation time
+     * Get the current simulation time in hours and minutes
      */
-    getCurrentTime(): number {
-        return this.simulationTime;
+    getCurrentTimeString(): string {
+        const timePercentage = (this.simulationTime / this.totalSimulationTime) * 100;
+        const hour = Math.floor((timePercentage / 100) * SIMULATION_CONSTANTS.WORK_HOURS) + SIMULATION_CONSTANTS.START_HOUR;
+        const minute = Math.floor(((timePercentage / 100) * SIMULATION_CONSTANTS.WORK_HOURS % 1) * 60);
+        return `${hour}:${minute.toString().padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
     }
     
     /**

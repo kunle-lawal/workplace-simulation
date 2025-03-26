@@ -4,6 +4,9 @@ import { deskNames, spaceNames, getUniqueName } from './names';
 
 // Dialog phrases for different worker states and actions
 const DIALOG_PHRASES = {
+    STOLEN_DESK: [
+        "Someone took my desk!",
+    ],
     DESK_OCCUPIED: [
         "Someone's sitting here already!",
         "This desk is taken.",
@@ -430,9 +433,10 @@ export class OfficeWorkerManager {
             // const workerX = entranceX + Math.cos(angle) * distance;
             // const workerY = entranceY - Math.sin(angle) * distance;
             
+            const workerName = workerNames[i % workerNames.length];
             const worker: Worker = {
                 id: workerId,
-                name: workerNames[i % workerNames.length],
+                name: workerName,
                 location: {
                     // x: workerX,
                     // y: workerY
@@ -458,7 +462,7 @@ export class OfficeWorkerManager {
                 nextEventTime: null,
                 workerEventIds: [],
                 dialog: {
-                    text: `Hello, I'm ${workerNames[i % workerNames.length]}!`,
+                    text: `Hello, I'm ${workerName}!`,
                     duration: 60000, // 60 seconds in milliseconds
                     startTime: this.currentTime
                 }
@@ -607,6 +611,10 @@ export class OfficeWorkerManager {
         if (!worker.dialog) return;
         
         const elapsedTime = this.currentTime - worker.dialog.startTime;
+        // console.log({dialog: worker.dialog});
+        // console.log({duration: worker.dialog.duration});
+        // console.log({elapsedTime})
+        // console.log(`This dialog: ${worker.dialog.text} has been up for ${elapsedTime}ms and should only last for ${worker.dialog.duration}ms`);
         if (elapsedTime > worker.dialog.duration) {
             worker.dialog = null;
         }
@@ -615,13 +623,13 @@ export class OfficeWorkerManager {
     /**
      * Set a dialog message for a worker
      */
-    private setWorkerDialog(worker: Worker, text: string, duration = 5): void {
+    private setWorkerDialog(worker: Worker, text: keyof typeof DIALOG_PHRASES, duration = 5000): void {
         worker.dialog = {
-            text,
+            text: DIALOG_PHRASES[text][Math.floor(Math.random() * DIALOG_PHRASES[text].length)],
             duration,
             startTime: this.currentTime,
         };
-        console.log(`Dialog set for ${worker.name}: "${text}" with duration ${duration}s`);
+        // console.log(`Dialog set for ${worker.name}: "${text}" with duration ${duration}s`);
     }
     
     /**
@@ -943,7 +951,7 @@ export class OfficeWorkerManager {
                         worker.physicalState = WorkerPhysicalState.WANDERING;
                         
                         // Show confused dialog
-                        this.setWorkerDialog(worker, "Someone took my desk!", 5);
+                        this.setWorkerDialog(worker, 'STOLEN_DESK');
                         
                         // Increment search attempts and try to find another desk
                         (worker as any).deskSearchAttempts++;
@@ -1040,7 +1048,6 @@ export class OfficeWorkerManager {
                     }
                 }
             }
-            console.log({worker});
             // Add random dialogs for wandering workers regardless of state
             if (!worker.dialog && Math.random() < 0.01) { // 1% chance per frame
                 // Pick a dialog type based on mental state
@@ -1231,11 +1238,6 @@ export class OfficeWorkerManager {
         // Create fresh events for the new day
         this.createEvents(60 * 1000);
         
-        // Define entrance area for respawning workers
-        const entranceX = 150;
-        const entranceY = 300;
-        const entranceRadius = 80;
-        
         // Reset worker states
         this.workers.forEach(worker => {
             worker.occupiedDesk = {
@@ -1252,23 +1254,16 @@ export class OfficeWorkerManager {
                 currentOccupiedTime: null
             };
             
-            // // Reset location to starting position at the entrance
-            // const angle = Math.random() * Math.PI; // Half circle at the top entrance
-            // const distance = Math.random() * entranceRadius;
-            // worker.location = {
-            //     x: entranceX + Math.cos(angle) * distance,
-            //     y: entranceY - Math.sin(angle) * distance
-            // };
-
+            // Set initial position near the entrance
             worker.location = {
-                x: 10,
-                y: 10
+                x: 150,
+                y: 300
             };
             
             worker.physicalState = WorkerPhysicalState.ARRIVING;
             worker.mentalState = WorkerMentalState.HAPPY;
             worker.destinationLocation = null;
-            worker.dialog = null; // Reset dialog
+            worker.dialog = null;
             
             // Reset search attempts
             (worker as any).deskSearchAttempts = 0;
@@ -1276,6 +1271,13 @@ export class OfficeWorkerManager {
             // Assign new events for the day
             worker.workerEventIds = [];
             this.assignEventsToWorker(worker);
+            
+            // Set initial dialog
+            worker.dialog = {
+                text: `Starting a new day!`,
+                duration: 5000, // 5 seconds
+                startTime: this.currentTime
+            };
         });
     }
 
@@ -1297,7 +1299,7 @@ function generateRandomNames(count: number): string[] {
         'Kate', 'Leo', 'Mia', 'Noah', 'Olivia',
         'Peter', 'Quinn', 'Ruby', 'Sam', 'Tina',
         'Uma', 'Victor', 'Wendy', 'Xander', 'Yasmin',
-        'Zach'
+        'Zach' 
     ];
     
     // Shuffle the array to get random names

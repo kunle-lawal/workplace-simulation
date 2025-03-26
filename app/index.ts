@@ -100,7 +100,10 @@ function setupSidebar(simulation: Simulation): void {
     // Override worker rendering to handle highlighting
     const originalRenderWorker = (simulation as any).canvasRenderer.renderWorker;
     (simulation as any).canvasRenderer.renderWorker = function(worker: Worker): void {
-        const { id, location, name, mentalState } = worker;
+        const { id, location, name, mentalState, dialog } = worker;
+        // if(['David', 'Olivia', 'Uma'].includes(name)) {
+        //     console.log(dialog);
+        // }
         const { x, y } = location;
         
         // Get worker color or use default
@@ -116,15 +119,44 @@ function setupSidebar(simulation: Simulation): void {
         this.ctx.fill();
         
         // Draw worker outline - thicker if highlighted
-        this.ctx.strokeStyle = isHighlighted ? '#FF9800' : '#333333';
-        this.ctx.lineWidth = isHighlighted ? 3 : 1;
-        this.ctx.stroke();
+        // this.ctx.strokeStyle = isHighlighted ? '#FF9800' : '#333333';
+        // this.ctx.lineWidth = isHighlighted ? 3 : 1;
+        // this.ctx.stroke();
         
         // Draw worker name
         this.ctx.fillStyle = '#000000';
         this.ctx.font = isHighlighted ? 'bold 12px Arial' : '10px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(name, x, y - 15);
+
+        if (worker.dialog) {
+            // console.log(worker.dialog);
+            // Draw dialog background
+            this.ctx.fillStyle = "red";
+            this.ctx.font = "12px Arial";
+            const textWidth = this.ctx.measureText(worker.dialog.text).width;
+            const padding = 10;
+            const dialogWidth = textWidth + padding * 2;
+            const dialogHeight = 30;
+            
+            // Draw rounded rectangle background
+            this.ctx.beginPath();
+            this.ctx.roundRect(
+                worker.location.x - dialogWidth / 2,
+                worker.location.y - 40,
+                dialogWidth,
+                dialogHeight,
+                5
+            );
+            this.ctx.fill();
+            this.ctx.strokeStyle = "red";
+            this.ctx.lineWidth = 1;
+            this.ctx.stroke();
+            
+            // Draw dialog text
+            this.ctx.fillStyle = "white";
+            this.ctx.fillText(worker.dialog.text, worker.location.x, worker.location.y - 20);
+        }
         
         // Draw worker's mental state as an emoji
         let emoji = '';

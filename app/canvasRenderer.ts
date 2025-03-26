@@ -474,63 +474,66 @@ export class CanvasRenderer {
         const { ctx } = this;
         const { id, location, name, mentalState, destinationLocation, dialog } = worker;
         const { x, y } = location;
+
+        // console.log(worker);
+        
         
         // Get worker color or use default
-        const color = this.workerColors.get(id) || COLORS.DEFAULT_WORKER;
+        // const color = this.workerColors.get(id) || COLORS.DEFAULT_WORKER;
         
         // Draw worker as a colored circle
-        ctx.beginPath();
-        ctx.arc(x, y, 10, 0, TWO_PI);
-        ctx.fillStyle = color;
-        ctx.fill();
+        // ctx.beginPath();
+        // ctx.arc(x, y, 10, 0, TWO_PI);
+        // ctx.fillStyle = color;
+        // ctx.fill();
         
         // Draw worker outline
-        ctx.strokeStyle = COLORS.UI.OUTLINE;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        // ctx.strokeStyle = COLORS.UI.OUTLINE;
+        // ctx.lineWidth = 1;
+        // ctx.stroke();
         
         // Draw worker name
-        ctx.fillStyle = COLORS.UI.BLACK;
-        ctx.font = FONTS.NORMAL;
-        ctx.textAlign = 'center';
-        ctx.fillText(name, x, y - 15);
+        // ctx.fillStyle = COLORS.UI.BLACK;
+        // ctx.font = FONTS.NORMAL;
+        // ctx.textAlign = 'center';
+        // ctx.fillText('HELLO', x, y - 15);
         
         // Get emoji for mental state
-        let emoji = '';
-        switch (mentalState) {
-            case WorkerMentalState.HAPPY:
-                emoji = '😊';
-                break;
-            case WorkerMentalState.FRUSTRATED:
-                emoji = '😠';
-                break;
-            case WorkerMentalState.CONFUSED:
-                emoji = '😕';
-                break;
-        }
+        // let emoji = '';
+        // switch (mentalState) {
+        //     case WorkerMentalState.HAPPY:
+        //         emoji = '😊';
+        //         break;
+        //     case WorkerMentalState.FRUSTRATED:
+        //         emoji = '😠';
+        //         break;
+        //     case WorkerMentalState.CONFUSED:
+        //         emoji = '😕';
+        //         break;
+        // }
         
         // Draw worker's mental state as an emoji
-        ctx.font = FONTS.EMOJI;
-        ctx.fillText(emoji, x, y + 20);
+        // ctx.font = FONTS.EMOJI;
+        // ctx.fillText(emoji, x, y + 20);
         
         // If worker has a destination, draw a line to it
-        if (destinationLocation) {
-            const { x: destX, y: destY } = destinationLocation;
+        // if (destinationLocation) {
+        //     const { x: destX, y: destY } = destinationLocation;
             
-            // Draw path line
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(destX, destY);
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+        //     // Draw path line
+        //     ctx.beginPath();
+        //     ctx.moveTo(x, y);
+        //     ctx.lineTo(destX, destY);
+        //     ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        //     ctx.lineWidth = 1;
+        //     ctx.stroke();
             
-            // Draw destination marker
-            ctx.beginPath();
-            ctx.arc(destX, destY, 3, 0, TWO_PI);
-            ctx.fillStyle = color;
-            ctx.fill();
-        }
+        //     // Draw destination marker
+        //     ctx.beginPath();
+        //     ctx.arc(destX, destY, 3, 0, TWO_PI);
+        //     ctx.fillStyle = color;
+        //     ctx.fill();
+        // }
         
         // Draw dialog bubble if it exists
         if (dialog) {
