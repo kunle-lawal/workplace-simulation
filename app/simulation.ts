@@ -184,6 +184,18 @@ export class Simulation {
         };
         
         this.animationFrameId = requestAnimationFrame(animate);
+        
+        // Add a listener to enable pan/zoom responsiveness even when simulation is paused
+        window.addEventListener('mousemove', () => {
+            if (this.canvasRenderer.isPanningActive()) {
+                this.render();
+            }
+        });
+        
+        // Update on mouse wheel for zoom
+        window.addEventListener('wheel', () => {
+            this.render();
+        }, { passive: false });
     }
     
     /**
@@ -202,6 +214,9 @@ export class Simulation {
             
             // Render meeting spaces
             this.canvasRenderer.renderSpaces(this.workerManager.getSpaces());
+            
+            // Render utility items
+            // this.canvasRenderer.renderUtilityItems(this.workerManager.getUtilityItems());
             
             // Render workers
             this.canvasRenderer.renderWorkers(this.workerManager.getWorkers());

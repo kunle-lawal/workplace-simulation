@@ -85,6 +85,8 @@ export enum DeskState {
 export type Desk = {
     x: number;
     y: number;
+    width: number;
+    height: number;
     destinationX: number;
     destinationY: number;
     id: string;
@@ -118,6 +120,8 @@ export type Space = {
     id: string;
     x: number;
     y: number;
+    width: number;
+    height: number;
     state: SpaceState;
     destinationX?: number;
     destinationY?: number;

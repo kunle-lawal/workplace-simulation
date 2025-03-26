@@ -9,9 +9,12 @@ const COLORS = {
         OCCUPIED: '#ffaaaa'
     },
     SPACE: {
-        AVAILABLE: 'rgba(170, 255, 170, 0.5)',
-        OCCUPIED: 'rgba(255, 170, 170, 0.5)',
-        ASSIGNED: 'rgba(170, 170, 255, 0.5)'
+        AVAILABLE: '#ffda77', // Yellow for meeting rooms
+        OCCUPIED: '#ffda77',
+        ASSIGNED: '#ffda77'
+    },
+    UTILITY: {
+        DEFAULT: '#ff7777'   // Red for office utility items
     },
     UI: {
         BLACK: '#000000',
@@ -48,6 +51,16 @@ export class CanvasRenderer {
     private canvasWidth: number;
     private canvasHeight: number;
     
+    // Add variables for panning and zooming
+    private zoomLevel: number = 0.7;
+    private panX: number = 0;
+    private panY: number = 0;
+    private isPanning: boolean = false;
+    private lastMouseX: number = 0;
+    private lastMouseY: number = 0;
+    private minZoom: number = 0.5;
+    private maxZoom: number = 2.5;
+    
     constructor(canvasId: string) {
         const canvas = document.getElementById(canvasId) as HTMLCanvasElement;
         if (!canvas) {
@@ -64,6 +77,162 @@ export class CanvasRenderer {
         this.canvasWidth = this.canvas.width;
         this.canvasHeight = this.canvas.height;
         this.workerColors = new Map<string, string>();
+        
+        // Initialize pan and zoom event listeners
+        this.setupEventListeners();
+    }
+    
+    /**
+     * Setup event listeners for panning and zooming
+     */
+    private setupEventListeners(): void {
+        // Mouse wheel for zooming
+        this.canvas.addEventListener('wheel', this.handleWheel.bind(this));
+        
+        // Mouse events for panning
+        this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
+        window.addEventListener('mousemove', this.handleMouseMove.bind(this));
+        window.addEventListener('mouseup', this.handleMouseUp.bind(this));
+        
+        // Touch events for mobile support
+        this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
+        this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
+        this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
+        
+        // Prevent context menu when right-clicking on canvas
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+        });
+    }
+    
+    /**
+     * Handle mouse wheel event for zooming
+     */
+    private handleWheel(e: WheelEvent): void {
+        e.preventDefault();
+        
+        // Calculate zoom center (mouse position)
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Convert mouse position to world coordinates before zoom
+        const worldX = (mouseX - this.panX) / this.zoomLevel;
+        const worldY = (mouseY - this.panY) / this.zoomLevel;
+        
+        // Adjust zoom level based on wheel direction
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        this.zoomLevel *= zoomFactor;
+        
+        // Clamp zoom level to min/max
+        this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel));
+        
+        // Calculate new pan offset to keep mouse position fixed
+        this.panX = mouseX - worldX * this.zoomLevel;
+        this.panY = mouseY - worldY * this.zoomLevel;
+    }
+    
+    /**
+     * Handle mouse down event to start panning
+     */
+    private handleMouseDown(e: MouseEvent): void {
+        // Only enable panning with middle mouse button (wheel) or right mouse button
+        if (e.button === 1 || e.button === 2) {
+            e.preventDefault();
+            this.isPanning = true;
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+            this.canvas.style.cursor = 'grabbing';
+        }
+    }
+    
+    /**
+     * Handle mouse move event for panning
+     */
+    private handleMouseMove(e: MouseEvent): void {
+        if (this.isPanning) {
+            const dx = e.clientX - this.lastMouseX;
+            const dy = e.clientY - this.lastMouseY;
+            
+            this.panX += dx;
+            this.panY += dy;
+            
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+        }
+    }
+    
+    /**
+     * Handle mouse up event to end panning
+     */
+    private handleMouseUp(e: MouseEvent): void {
+        if (this.isPanning) {
+            this.isPanning = false;
+            this.canvas.style.cursor = 'default';
+        }
+    }
+    
+    /**
+     * Handle touch start event for panning on mobile devices
+     */
+    private handleTouchStart(e: TouchEvent): void {
+        if (e.touches.length === 1) {
+            e.preventDefault();
+            this.isPanning = true;
+            this.lastMouseX = e.touches[0].clientX;
+            this.lastMouseY = e.touches[0].clientY;
+        }
+    }
+    
+    /**
+     * Handle touch move event for panning on mobile devices
+     */
+    private handleTouchMove(e: TouchEvent): void {
+        if (this.isPanning && e.touches.length === 1) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - this.lastMouseX;
+            const dy = e.touches[0].clientY - this.lastMouseY;
+            
+            this.panX += dx;
+            this.panY += dy;
+            
+            this.lastMouseX = e.touches[0].clientX;
+            this.lastMouseY = e.touches[0].clientY;
+        }
+    }
+    
+    /**
+     * Handle touch end event to end panning on mobile devices
+     */
+    private handleTouchEnd(e: TouchEvent): void {
+        this.isPanning = false;
+    }
+    
+    /**
+     * Apply transformation based on current pan and zoom
+     */
+    private applyTransform(): void {
+        this.ctx.save();
+        this.ctx.translate(this.panX, this.panY);
+        this.ctx.scale(this.zoomLevel, this.zoomLevel);
+    }
+    
+    /**
+     * Restore canvas to normal state
+     */
+    private restoreTransform(): void {
+        this.ctx.restore();
+    }
+    
+    /**
+     * Convert screen coordinates to world coordinates
+     */
+    screenToWorld(screenX: number, screenY: number): {x: number, y: number} {
+        return {
+            x: (screenX - this.panX) / this.zoomLevel,
+            y: (screenY - this.panY) / this.zoomLevel
+        };
     }
     
     /**
@@ -93,9 +262,12 @@ export class CanvasRenderer {
     renderFloorPlan(): void {
         const { ctx, canvasWidth, canvasHeight } = this;
         
-        // Draw background
+        // Draw overall background
         ctx.fillStyle = COLORS.UI.BACKGROUND;
         ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        // Apply pan and zoom transformation for the floor plan
+        this.applyTransform();
         
         // Draw floor grid for visual reference
         ctx.strokeStyle = COLORS.UI.GRID;
@@ -105,25 +277,37 @@ export class CanvasRenderer {
         ctx.beginPath();
         
         // Draw vertical grid lines
-        for (let x = 0; x < canvasWidth; x += 50) {
+        for (let x = 0; x < canvasWidth * 2; x += 50) {
             ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvasHeight);
+            ctx.lineTo(x, canvasHeight * 2);
         }
         
-        // Draw horizontal grid lines
-        for (let y = 0; y < canvasHeight; y += 50) {
+        // Draw horizontal grid lines - fix the incorrect line direction
+        for (let y = 0; y < canvasHeight * 2; y += 50) {
             ctx.moveTo(0, y);
-            ctx.lineTo(canvasWidth, y);
+            ctx.lineTo(canvasWidth * 2, y);
         }
         
         // Draw all lines at once
         ctx.stroke();
+        
+        // Reset transformation
+        this.restoreTransform();
+        
+        // Add panning/zooming instructions
+        ctx.fillStyle = COLORS.UI.BLACK;
+        ctx.font = FONTS.NORMAL;
+        ctx.textAlign = 'right';
+        ctx.fillText('Use middle/right mouse button to pan, mouse wheel to zoom', canvasWidth - 20, canvasHeight - 20);
     }
+    
     
     /**
      * Render all desks
      */
     renderDesks(desks: Desk[]): void {
+        this.applyTransform();
+        
         // Group desks by state to reduce state changes
         const desksByState = new Map<DeskState, Desk[]>();
         
@@ -138,6 +322,8 @@ export class CanvasRenderer {
         desksByState.forEach((desksInState, state) => {
             this.renderDesksWithSameState(desksInState, state);
         });
+        
+        this.restoreTransform();
     }
     
     /**
@@ -161,8 +347,8 @@ export class CanvasRenderer {
         
         // Draw desk rectangles
         desks.forEach(desk => {
-            const { x, y } = desk;
-            ctx.fillRect(x - 15, y - 10, 30, 20);
+            const { x, y, width, height } = desk;
+            ctx.fillRect(x - width / 2, y - height / 2, width, height);
         });
         
         // Draw all desk outlines
@@ -170,8 +356,8 @@ export class CanvasRenderer {
         ctx.lineWidth = 1;
         
         desks.forEach(desk => {
-            const { x, y } = desk;
-            ctx.strokeRect(x - 15, y - 10, 30, 20);
+            const { x, y, width, height } = desk;
+            ctx.strokeRect(x - width / 2, y - height / 2, width, height);
         });
         
         // Draw all desk IDs
@@ -189,6 +375,8 @@ export class CanvasRenderer {
      * Render all meeting spaces
      */
     renderSpaces(spaces: Space[]): void {
+        this.applyTransform();
+        
         // Group spaces by state to reduce state changes
         const spacesByState = new Map<SpaceState, Space[]>();
         
@@ -203,6 +391,8 @@ export class CanvasRenderer {
         spacesByState.forEach((spacesInState, state) => {
             this.renderSpacesWithSameState(spacesInState, state);
         });
+        
+        this.restoreTransform();
     }
     
     /**
@@ -211,38 +401,23 @@ export class CanvasRenderer {
     private renderSpacesWithSameState(spaces: Space[], state: SpaceState): void {
         const { ctx } = this;
         
-        // Set space color based on state (once for the entire group)
-        switch (state) {
-            case SpaceState.AVAILABLE:
-                ctx.fillStyle = COLORS.SPACE.AVAILABLE;
-                break;
-            case SpaceState.OCCUPIED:
-                ctx.fillStyle = COLORS.SPACE.OCCUPIED;
-                break;
-            case SpaceState.ASSIGNED:
-                ctx.fillStyle = COLORS.SPACE.ASSIGNED;
-                break;
-        }
+        // Set space color to yellow (meeting room)
+        ctx.fillStyle = COLORS.SPACE.AVAILABLE;
         
-        // Draw all space circles
-        ctx.beginPath();
+        // Draw all spaces as squares (meeting rooms) instead of circles
         spaces.forEach(space => {
-            const { x, y } = space;
-            ctx.moveTo(x + 25, y);
-            ctx.arc(x, y, 25, 0, TWO_PI);
+            const { x, y, width, height } = space;
+            ctx.fillRect(x - width / 2, y - height / 2, width, height);
         });
-        ctx.fill();
         
         // Draw all space outlines
         ctx.strokeStyle = COLORS.UI.OUTLINE;
         ctx.lineWidth = 1;
-        ctx.beginPath();
+        
         spaces.forEach(space => {
-            const { x, y } = space;
-            ctx.moveTo(x + 25, y);
-            ctx.arc(x, y, 25, 0, TWO_PI);
+            const { x, y, width, height } = space;
+            ctx.strokeRect(x - width / 2, y - height / 2, width, height);
         });
-        ctx.stroke();
         
         // Draw all space IDs
         ctx.fillStyle = COLORS.UI.BLACK;
@@ -273,6 +448,8 @@ export class CanvasRenderer {
      * Render all workers
      */
     renderWorkers(workers: Worker[]): void {
+        this.applyTransform();
+        
         // Sort workers so ones with dialogs render last (on top)
         const sortedWorkers = [...workers].sort((a, b) => {
             // Workers with dialogs come last (higher z-index)
@@ -284,6 +461,8 @@ export class CanvasRenderer {
         sortedWorkers.forEach(worker => {
             this.renderWorker(worker);
         });
+        
+        this.restoreTransform();
     }
     
     /**
@@ -430,5 +609,45 @@ export class CanvasRenderer {
         ctx.font = FONTS.UI_BOLD;
         ctx.textAlign = 'left';
         ctx.fillText(modeText, 20, 50);
+    }
+    
+    /**
+     * Render office utility items (red diamonds)
+     */
+    renderUtilityItems(utilityItems: {x: number, y: number}[]): void {
+        this.applyTransform();
+        
+        const { ctx } = this;
+        
+        // Set utility item color
+        ctx.fillStyle = COLORS.UTILITY.DEFAULT;
+        
+        // Draw all utility items as diamonds
+        utilityItems.forEach(item => {
+            const { x, y } = item;
+            
+            // Draw diamond shape
+            ctx.beginPath();
+            ctx.moveTo(x, y - 15); // Top point
+            ctx.lineTo(x + 15, y); // Right point
+            ctx.lineTo(x, y + 15); // Bottom point
+            ctx.lineTo(x - 15, y); // Left point
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw outline
+            ctx.strokeStyle = COLORS.UI.OUTLINE;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        });
+        
+        this.restoreTransform();
+    }
+    
+    /**
+     * Check if panning is currently active
+     */
+    isPanningActive(): boolean {
+        return this.isPanning;
     }
 } 

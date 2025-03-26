@@ -68,6 +68,7 @@ export class OfficeWorkerManager {
     private spaces: Space[] = [];
     private spacesMap: SpaceMap = {};
     private events: WorkerEventMap = {};
+    private utilityItems: {x: number, y: number}[] = [];
     private canvasWidth: number;
     private canvasHeight: number;
     private isManaged: boolean = false;
@@ -102,9 +103,10 @@ export class OfficeWorkerManager {
     /**
      * Initialize office layout
      */
-    initializeOffice(numWorkers: number = 10, numDesks: number = 5, numSpaces: number = 5): void {
-        this.createDesks(numDesks);
-        this.createSpaces(numSpaces);
+    initializeOffice(numWorkers: number = 10): void {
+        this.createDesks();
+        this.createSpaces();
+        this.createUtilityItems();
         this.createEvents(60 * 1000); // Create events for the 60-second day
         this.createWorkers(numWorkers);
     }
@@ -112,67 +114,219 @@ export class OfficeWorkerManager {
     /**
      * Create desks in the office
      */
-    private createDesks(numDesks: number): void {
+    private createDesks(numDesks: number = 24): void {
         this.desks = [];
         this.desksMap = {};
         
-        // Grid for desk layout
-        const gridCols = 5;
-        const deskWidth = 30;
-        const deskHeight = 20;
-        const startX = 100;
-        const startY = 150;
-        const spacingX = 70;
-        const spacingY = 60;
+        // Create desks in groups as shown in the image
         
-        for (let i = 0; i < numDesks; i++) {
-            const row = Math.floor(i / gridCols);
-            const col = i % gridCols;
-            const deskX = startX + col * spacingX;
-            const deskY = startY + row * spacingY;
-            
-            const desk: Desk = {
-                id: generateId('desk'),
-                x: deskX,
-                y: deskY,
-                // Set destination coordinates to the center of the desk
-                destinationX: deskX,
-                destinationY: deskY,
-                state: DeskState.AVAILABLE,
-                occupiedBy: null
-            };
-            
-            this.desks.push(desk);
-            this.desksMap[desk.id] = desk;
+        // Group 1: Top-left 2x2 grid
+        this.createDeskGroup({
+            startX: 500,
+            startY: 220,
+            cols: 2,
+            rows: 4,
+            spacingX: 30,
+            spacingY: 50,
+            deskWidth: 20,
+            deskHeight: 40
+        });
+
+        this.createDeskGroup({
+            startX: 650,
+            startY: 220,
+            cols: 2,
+            rows: 4,
+            spacingX: 30,
+            spacingY: 50,
+            deskWidth: 20,
+            deskHeight: 40
+        });
+
+        this.createDeskGroup({
+            startX: 800,
+            startY: 270,
+            cols: 2,
+            rows: 3,
+            spacingX: 30,
+            spacingY: 50,
+            deskWidth: 20,
+            deskHeight: 40
+        });
+
+        this.createDeskGroup({
+            startX: 950,
+            startY: 270,
+            cols: 2,
+            rows: 3,
+            spacingX: 30,
+            spacingY: 50,
+            deskWidth: 20,
+            deskHeight: 40
+        });
+
+        /* Bottom row */
+        this.createDeskGroup({
+            startX: 500,
+            startY: 470,
+            cols: 3,
+            rows: 2,
+            spacingX: 50,
+            spacingY: 30,
+            deskWidth: 40,
+            deskHeight: 20
+        });
+        
+        // Group 2: Top-right 2x2 grid
+        // this.createDeskGroup(450, 340, 2, 2, 60, 60);
+        
+        // // Group 3: Middle-left 3x2 grid
+        // this.createDeskGroup(330, 450, 3, 2, 60, 60);
+        
+        // // Group 4: Middle-right 3x2 grid
+        // this.createDeskGroup(500, 450, 3, 2, 60, 60);
+        
+        // // Group 5: Middle-left column 2x1
+        // this.createDeskGroup(630, 390, 2, 1, 60, 60);
+        
+        // // Group 6: Right side extra desks
+        // this.createDeskGroup(650, 500, 1, 2, 60, 60);
+    }
+    
+    /**
+     * Create a group of desks in a grid pattern
+     */
+    private createDeskGroup({
+        startX,
+        startY,
+        cols,
+        rows,
+        spacingX,
+        spacingY,
+        deskWidth,
+        deskHeight
+    }: {
+        startX: number,
+        startY: number,
+        cols: number,
+        rows: number,
+        spacingX: number,
+        spacingY: number,
+        deskWidth: number,
+        deskHeight: number
+    }): void {
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+                const deskX = startX + col * spacingX;
+                const deskY = startY + row * spacingY;
+                
+                const desk: Desk = {
+                    id: generateId('desk'),
+                    x: deskX,
+                    y: deskY,
+                    width: deskWidth,
+                    height: deskHeight,
+                    // Set destination coordinates to the center of the desk
+                    destinationX: deskX,
+                    destinationY: deskY,
+                    state: DeskState.AVAILABLE,
+                    occupiedBy: null
+                };
+                
+                this.desks.push(desk);
+                this.desksMap[desk.id] = desk;
+            }
         }
     }
     
     /**
-     * Create meeting spaces in the office
+     * Create meeting spaces in the office (yellow squares)
      */
-    private createSpaces(numSpaces: number): void {
+    private createSpaces(numSpaces: number = 9): void {
         this.spaces = [];
         this.spacesMap = {};
         
-        // Layout meeting spaces in a row at the bottom
-        const startX = 150;
-        const y = 450;
-        const spacing = 100;
+        // Create spaces as shown in the image
         
-        for (let i = 0; i < numSpaces; i++) {
-            const spaceX = startX + i * spacing;
-            const space: Space = {
-                id: generateId('space'),
-                x: spaceX,
-                y: y,
-                state: SpaceState.AVAILABLE,
-                destinationX: spaceX,
-                destinationY: y
-            };
-            
-            this.spaces.push(space);
-            this.spacesMap[space.id] = space;
+        // Left side meeting rooms (4 spaces)
+        this.createSpace({x: 300, y: 300, width: 100, height: 200});
+        this.createSpace({x: 300, y: 450, width: 100, height: 60});
+        this.createSpace({x: 300, y: 525, width: 100, height: 60});
+        this.createSpace({x: 325, y: 620, width: 150, height: 100});
+
+        this.createSpace({x: 450, y: 640, width: 60, height: 60});
+        this.createSpace({x: 530, y: 640, width: 60, height: 60});
+        this.createSpace({x: 610, y: 640, width: 60, height: 60});
+
+
+
+
+        // this.createSpace({x: 700, y: 475, width: 100, height: 50});
+        // this.createSpace(160, 400, 10, 10);
+        // this.createSpace(160, 500, 10, 10);
+        // this.createSpace(160, 600, 10, 10);
+        
+        // // Bottom row meeting rooms (5 spaces)
+        // this.createSpace(260, 600, 10, 10);
+        // this.createSpace(360, 600, 10, 10);
+        // this.createSpace(460, 600, 10, 10); 
+        // this.createSpace(560, 600, 10, 10);
+        
+        // Right side meeting room
+        // this.createSpace(740, 550);
+    }
+    
+    /**
+     * Create a single meeting space
+     */
+    private createSpace({x, y, width, height}: {x: number, y: number, width: number, height: number}): void {
+        const space: Space = {
+            id: generateId('space'),
+            x: x,
+            y: y,
+            width: width,
+            height: height,
+            state: SpaceState.AVAILABLE,
+            destinationX: x,
+            destinationY: y
+        };
+        
+        this.spaces.push(space);
+        this.spacesMap[space.id] = space;
+    }
+    
+    /**
+     * Create office utility items (red diamonds)
+     */
+    private createUtilityItems(): void {
+        // Create utility items as shown in the image
+        // Since this isn't part of the existing data structures, we'll add rendering code separately
+        
+        // Right side utility items
+        this.createUtilityItem(730, 520); // Top-right
+        this.createUtilityItem(780, 570); // Below top-right
+        
+        // Middle utility items cluster
+        this.createUtilityItem(730, 650); // Bottom-right
+        this.createUtilityItem(700, 680); // Bottom-right lower
+        
+        // Center group of utility items (in diamond shape)
+        this.createUtilityItem(790, 400); // Top
+        this.createUtilityItem(760, 430); // Left
+        this.createUtilityItem(820, 430); // Right
+        this.createUtilityItem(790, 460); // Bottom
+    }
+    
+    /**
+     * Create a single utility item
+     */
+    private createUtilityItem(x: number, y: number): void {
+        // For now, we'll just store the positions to render them later
+        if (!this.utilityItems) {
+            this.utilityItems = [];
         }
+        
+        this.utilityItems.push({ x, y });
     }
     
     /**
@@ -243,16 +397,29 @@ export class OfficeWorkerManager {
         // Select random names for the workers
         const workerNames = generateRandomNames(numWorkers);
         
+        // Define an entrance area for workers to start from
+        // const entranceX = 150;
+        // const entranceY = 300;
+        // const entranceRadius = 80;
+        
         for (let i = 0; i < numWorkers; i++) {
             const workerId = generateId('worker');
             
-            // Create worker with starting position at the edge of the office
+            // Create worker with starting position at the entrance of the office
+            // Randomly distribute workers around the entrance area
+            // const angle = Math.random() * Math.PI; // Half circle at the top entrance
+            // const distance = Math.random() * entranceRadius;
+            // const workerX = entranceX + Math.cos(angle) * distance;
+            // const workerY = entranceY - Math.sin(angle) * distance;
+            
             const worker: Worker = {
                 id: workerId,
                 name: workerNames[i % workerNames.length],
                 location: {
+                    // x: workerX,
+                    // y: workerY
                     x: getRandomNumber(30, this.canvasWidth - 30),
-                    y: 30 // Start at the top edge
+                    y: 30 // 
                 },
                 assignedDeskId: this.isManaged ? this.desks[i % this.desks.length].id : null,
                 occupiedDesk: {
@@ -1040,6 +1207,11 @@ export class OfficeWorkerManager {
         // Create fresh events for the new day
         this.createEvents(60 * 1000);
         
+        // Define entrance area for respawning workers
+        const entranceX = 150;
+        const entranceY = 300;
+        const entranceRadius = 80;
+        
         // Reset worker states
         this.workers.forEach(worker => {
             worker.occupiedDesk = {
@@ -1056,7 +1228,14 @@ export class OfficeWorkerManager {
                 currentOccupiedTime: null
             };
             
-            // Reset location to starting position (0,0)
+            // // Reset location to starting position at the entrance
+            // const angle = Math.random() * Math.PI; // Half circle at the top entrance
+            // const distance = Math.random() * entranceRadius;
+            // worker.location = {
+            //     x: entranceX + Math.cos(angle) * distance,
+            //     y: entranceY - Math.sin(angle) * distance
+            // };
+
             worker.location = {
                 x: 10,
                 y: 10
@@ -1073,22 +1252,15 @@ export class OfficeWorkerManager {
             // Assign new events for the day
             worker.workerEventIds = [];
             this.assignEventsToWorker(worker);
-            
-            // Set initial destination based on mode
-            if (this.isManaged && worker.assignedDeskId) {
-                const assignedDesk = this.desksMap[worker.assignedDeskId];
-                if (assignedDesk) {
-                    worker.destinationLocation = {
-                        x: assignedDesk.destinationX,
-                        y: assignedDesk.destinationY
-                    };
-                    worker.physicalState = WorkerPhysicalState.MOVING_TO_DESK;
-                }
-            } else {
-                this.findDeskForWorker(worker);
-            }
         });
     }
+
+    /**
+     * Get utility items for rendering
+     */
+    // getUtilityItems(): {x: number, y: number}[] {
+    //     return this.utilityItems;
+    // }
 }
 
 /**
