@@ -77,32 +77,52 @@ canvas {
 }
 
 .worker-list-item {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
     display: flex;
     align-items: center;
-}
-
-.worker-list-item:last-child {
-    border-bottom: none;
+    padding: 8px;
+    margin: 4px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 .worker-list-item:hover {
-    background-color: #f9f9f9;
+    background-color: rgba(0, 0, 0, 0.05);
 }
 
-.worker-list-item.active {
-    background-color: #e9f5ff;
-    font-weight: bold;
+.worker-list-item.selected {
+    background-color: rgba(0, 0, 0, 0.1);
+    border: 2px solid #4CAF50;
 }
 
 .worker-color-dot {
-    display: inline-block;
     width: 12px;
     height: 12px;
     border-radius: 50%;
     margin-right: 8px;
+}
+
+.worker-name {
+    flex-grow: 1;
+}
+
+.follow-button {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 16px;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.follow-button:hover {
+    opacity: 1;
+}
+
+.follow-button.active {
+    opacity: 1;
+    color: #4CAF50;
 }
 
 .worker-info {

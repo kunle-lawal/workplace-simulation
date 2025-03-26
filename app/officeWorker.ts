@@ -600,6 +600,7 @@ export class OfficeWorkerManager {
             }
             
             // Update worker dialog (check if it should expire)
+            /* THIS IS WHAT CAUSES THE JITTERS */
             this.updateWorkerDialog(worker);
         });
     }

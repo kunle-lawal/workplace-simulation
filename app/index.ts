@@ -48,6 +48,7 @@ function setupSidebar(simulation: Simulation): void {
     // Add selected worker property to simulation
     (simulation as any).selectedWorkerId = null;
     (simulation as any).lastUpdateTime = 0;
+    (simulation as any).followModeEnabled = false;
 
     // Add highlight worker property to simulation renderer
     (simulation as any).canvasRenderer.highlightedWorkerId = null;
@@ -88,7 +89,27 @@ function setupSidebar(simulation: Simulation): void {
 
     // Update worker info less frequently (every 1 second instead of 500ms)
     setInterval(() => {
-        updateSelectedWorkerInfo(simulation);
+        // Only update the info if we have a selected worker
+        if ((simulation as any).selectedWorkerId) {
+            updateSelectedWorkerInfo(simulation);
+            
+            // Update camera position if follow mode is enabled
+            // if ((simulation as any).followModeEnabled) {
+            //     const worker = getWorkerById(simulation, (simulation as any).selectedWorkerId);
+            //     if (worker) {
+            //         const canvasRenderer = (simulation as any).canvasRenderer;
+            //         const canvasWidth = canvasRenderer.getWidth();
+            //         const canvasHeight = canvasRenderer.getHeight();
+                    
+            //         // Calculate the center position for the worker
+            //         const targetX = canvasWidth / 2 - worker.location.x;
+            //         const targetY = canvasHeight / 2 - worker.location.y;
+                    
+            //         // Smoothly animate to the new position
+            //         animateToPosition(canvasRenderer, targetX, targetY, canvasRenderer.zoomLevel);
+            //     }
+            // }
+        }
         // Update worker list while maintaining selection
         const currentSelection = (simulation as any).selectedWorkerId;
         populateWorkerList(simulation);
@@ -247,54 +268,190 @@ function populateWorkerList(simulation: Simulation): void {
         
         const listItem = document.createElement('div');
         listItem.className = 'worker-list-item';
-        if (worker.id === currentSelection) {
-            listItem.classList.add('active');
-        }
-        listItem.dataset.id = worker.id;
-        listItem.innerHTML = `
-            <span class="worker-color-dot" style="background-color: ${workerColor}"></span>
-            ${worker.name}
-        `;
+        listItem.setAttribute('data-worker-id', worker.id);
         
+        // Set initial selected state
+        if (worker.id === currentSelection) {
+            listItem.classList.add('selected');
+            listItem.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+            listItem.style.border = '2px solid #4CAF50';
+        }
+        
+        // Add color dot
+        const colorDot = document.createElement('span');
+        colorDot.className = 'worker-color-dot';
+        colorDot.style.backgroundColor = workerColor;
+        listItem.appendChild(colorDot);
+        
+        // Add worker name
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'worker-name';
+        nameSpan.textContent = worker.name;
+        listItem.appendChild(nameSpan);
+        
+        // Add follow mode toggle button
+        // const followButton = document.createElement('button');
+        // followButton.className = 'follow-button';
+        // followButton.innerHTML = '👁️';
+        // followButton.title = 'Toggle Follow Mode';
+        
+        // Set initial follow mode state
+        // if (worker.id === currentSelection && (simulation as any).followModeEnabled) {
+        //     followButton.classList.add('active');
+        // }
+        
+        // Add click handler for follow mode
+        // followButton.addEventListener('click', (e) => {
+        //     e.stopPropagation(); // Prevent worker selection when clicking the button
+            
+        //     if (worker.id === currentSelection) {
+        //         (simulation as any).followModeEnabled = !(simulation as any).followModeEnabled;
+        //         followButton.classList.toggle('active');
+        //     } else {
+        //         // If clicking follow button for a different worker, select that worker and enable follow mode
+        //         selectWorker(simulation, worker.id);
+        //         (simulation as any).followModeEnabled = true;
+        //         followButton.classList.add('active');
+        //     }
+        // });
+        
+        // listItem.appendChild(followButton);
+        
+        // Add click handler for selection
         listItem.addEventListener('click', () => {
-            selectWorker(simulation, worker.id);
+            // Toggle selection
+            const isSelected = listItem.classList.contains('selected');
+            if (isSelected) {
+                // Deselect this worker
+                listItem.classList.remove('selected');
+                listItem.style.backgroundColor = '';
+                listItem.style.border = '';
+                selectWorker(simulation, null);
+            } else {
+                // Deselect all other workers and select this one
+                document.querySelectorAll('.worker-list-item').forEach((item: Element) => {
+                    item.classList.remove('selected');
+                    (item as HTMLElement).style.backgroundColor = '';
+                    (item as HTMLElement).style.border = '';
+                });
+                listItem.classList.add('selected');
+                listItem.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+                listItem.style.border = '2px solid #4CAF50';
+                selectWorker(simulation, worker.id);
+            }
         });
         
         workerListElement.appendChild(listItem);
     });
 }
 
-function selectWorker(simulation: Simulation, workerId: string): void {
+function selectWorker(simulation: Simulation, workerId: string | null): void {
+    // Update the selected worker ID
     (simulation as any).selectedWorkerId = workerId;
     
-    // If highlight mode is enabled, update the highlighted worker
+    // Update the UI to reflect the selection
+    updateWorkerSelection(simulation, workerId);
+    
+    // Update highlight mode if enabled
     if ((simulation as any).highlightModeEnabled) {
         (simulation as any).canvasRenderer.highlightedWorkerId = workerId;
     }
+
+    // If a worker is selected, pan and zoom to their location (only if follow mode is disabled)
+    // if (workerId && !(simulation as any).followModeEnabled) {
+    //     const worker = getWorkerById(simulation, workerId);
+    //     if (worker) {
+    //         const canvasRenderer = (simulation as any).canvasRenderer;
+    //         const canvasWidth = canvasRenderer.getWidth();
+    //         const canvasHeight = canvasRenderer.getHeight();
+            
+    //         // Calculate the center position for the worker
+    //         const targetX = canvasWidth / 2 - worker.location.x;
+    //         const targetY = canvasHeight / 2 - worker.location.y;
+            
+    //         // Set a zoom level that makes the worker clearly visible
+    //         const targetZoom = 1.2;
+            
+    //         // Smoothly animate to the new position and zoom
+    //         animateToPosition(canvasRenderer, targetX, targetY, targetZoom);
+    //     }
+    // }
+}
+
+/**
+ * Animate the canvas to a new position and zoom level
+ */
+function animateToPosition(canvasRenderer: any, targetX: number, targetY: number, targetZoom: number): void {
+    const startX = canvasRenderer.panX;
+    const startY = canvasRenderer.panY;
+    const startZoom = canvasRenderer.zoomLevel;
     
-    // Update UI
-    updateWorkerSelection(workerId);
+    const duration = 1000; // 1 second animation
+    const startTime = performance.now();
     
-    const worker = getWorkerById(simulation, workerId);
-    if (worker) {
-        updateWorkerInfo(simulation, worker);
+    function animate(currentTime: number): void {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Use easing function for smooth animation
+        const easeProgress = easeInOutCubic(progress);
+        
+        // Interpolate position and zoom
+        canvasRenderer.panX = startX + (targetX - startX) * easeProgress;
+        canvasRenderer.panY = startY + (targetY - startY) * easeProgress;
+        canvasRenderer.zoomLevel = startZoom + (targetZoom - startZoom) * easeProgress;
+        
+        // Request next frame if animation isn't complete
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        }
     }
+    
+    requestAnimationFrame(animate);
+}
+
+/**
+ * Easing function for smooth animation
+ */
+function easeInOutCubic(t: number): number {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 function getWorkerById(simulation: Simulation, workerId: string): Worker | undefined {
     return (simulation as any).workerManager.workers.find((w: Worker) => w.id === workerId);
 }
 
-function updateWorkerSelection(workerId: string): void {
-    // Remove active class from all items
-    document.querySelectorAll('.worker-list-item').forEach(item => {
-        item.classList.remove('active');
+function updateWorkerSelection(simulation: Simulation, workerId: string | null): void {
+    // Update worker list items
+    document.querySelectorAll('.worker-list-item').forEach((item: Element) => {
+        const itemWorkerId = item.getAttribute('data-worker-id');
+        if (itemWorkerId === workerId) {
+            item.classList.add('selected');
+            (item as HTMLElement).style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+            (item as HTMLElement).style.border = '2px solid #4CAF50';
+        } else {
+            item.classList.remove('selected');
+            (item as HTMLElement).style.backgroundColor = '';
+            (item as HTMLElement).style.border = '';
+        }
     });
     
-    // Add active class to selected item
-    const selectedItem = document.querySelector(`.worker-list-item[data-id="${workerId}"]`);
-    if (selectedItem) {
-        selectedItem.classList.add('active');
+    // Update worker info section
+    const noSelectionMessage = document.getElementById('no-selection-message');
+    const workerDetails = document.getElementById('worker-details');
+    
+    if (workerId === null) {
+        if (noSelectionMessage) noSelectionMessage.style.display = 'block';
+        if (workerDetails) workerDetails.style.display = 'none';
+    } else {
+        if (noSelectionMessage) noSelectionMessage.style.display = 'none';
+        if (workerDetails) workerDetails.style.display = 'block';
+        
+        // Update the worker info immediately
+        const worker = getWorkerById(simulation, workerId);
+        if (worker) {
+            updateWorkerInfo(simulation, worker);
+        }
     }
 }
 
@@ -615,6 +772,21 @@ function updateSimulationInfo(simulation: Simulation): void {
     updateSpaceInfo(simulation);
 }
 
+function formatSimulationTime(time: number): string {
+    if (time === undefined || time === null) return 'N/A';
+    
+    // Convert to hours and minutes (8 AM to 5 PM)
+    const totalTime = 60 * 1000; // Total simulation time (60 seconds)
+    const timePercentage = (time / totalTime) * 100;
+    
+    // Convert percentage to simulated hour (8 AM to 5 PM)
+    const hour = Math.floor((timePercentage / 100) * 9) + 8;
+    const minute = Math.floor(((timePercentage / 100) * 9 % 1) * 60);
+    
+    // Format the time
+    return `${hour}:${minute.toString().padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
+}
+
 function updateDeskInfo(simulation: Simulation): void {
     const desks = (simulation as any).workerManager.getDesks();
     if (!desks || !desks.length) return;
@@ -678,18 +850,3 @@ function updateSpaceInfo(simulation: Simulation): void {
         occupiedSpacesElement.textContent = occupiedSpaces.length.toString();
     }
 }
-
-function formatSimulationTime(time: number): string {
-    if (time === undefined || time === null) return 'N/A';
-    
-    // Convert to hours and minutes (8 AM to 5 PM)
-    const totalTime = 60 * 1000; // Total simulation time (60 seconds)
-    const timePercentage = (time / totalTime) * 100;
-    
-    // Convert percentage to simulated hour (8 AM to 5 PM)
-    const hour = Math.floor((timePercentage / 100) * 9) + 8;
-    const minute = Math.floor(((timePercentage / 100) * 9 % 1) * 60);
-    
-    // Format the time
-    return `${hour}:${minute.toString().padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
-} 
