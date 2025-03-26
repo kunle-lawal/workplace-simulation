@@ -79,6 +79,7 @@ export enum DeskState {
     destinationX: The x coordinate inside the desk for the worker to navigate to
     destinationY: The y coordinate inside the desk for the worker to navigate to
     id: The id of the desk
+    name: The name of the desk
     state: The state of the desk
     occupiedBy: The ID of the worker currently occupying the desk, if any
 */
@@ -90,8 +91,12 @@ export type Desk = {
     destinationX: number;
     destinationY: number;
     id: string;
+    name: string;
     state: DeskState;
-    occupiedBy: string | null;
+    occupiedBy: {
+        workerId: string;
+        workerName: string;
+    } | null;
 }
 
 export type DeskMap = Record<string, Desk>
@@ -114,10 +119,12 @@ export type WorkerEventMap = Record<string, WorkerEvent>
     x: The x coordinate of the space
     y: The y coordinate of the space
     id: The id of the space
+    name: The name of the space
     state: The state of the space
 */
 export type Space = {
     id: string;
+    name: string;
     x: number;
     y: number;
     width: number;

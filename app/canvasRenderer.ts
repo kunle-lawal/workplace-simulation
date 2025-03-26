@@ -366,8 +366,10 @@ export class CanvasRenderer {
         ctx.textAlign = 'center';
         
         desks.forEach(desk => {
-            const { x, y, id } = desk;
-            ctx.fillText(id, x, y + 5);
+            const { x, y, occupiedBy } = desk;
+            if (occupiedBy) {
+                ctx.fillText(occupiedBy.workerName, x, y + 5);
+            }
         });
     }
     
@@ -425,8 +427,8 @@ export class CanvasRenderer {
         ctx.textAlign = 'center';
         
         spaces.forEach(space => {
-            const { x, y, id } = space;
-            ctx.fillText(id, x, y);
+            const { x, y, id, name } = space;
+            ctx.fillText(name, x, y);
         });
     }
     

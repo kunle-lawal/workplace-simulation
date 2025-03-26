@@ -87,7 +87,15 @@ function setupSidebar(simulation: Simulation): void {
     }
 
     // Update worker info less frequently (every 1 second instead of 500ms)
-    setInterval(() => updateSelectedWorkerInfo(simulation), 1000);
+    setInterval(() => {
+        updateSelectedWorkerInfo(simulation);
+        // Update worker list while maintaining selection
+        const currentSelection = (simulation as any).selectedWorkerId;
+        populateWorkerList(simulation);
+        if (currentSelection) {
+            selectWorker(simulation, currentSelection);
+        }
+    }, 1000);
 
     // Override worker rendering to handle highlighting
     const originalRenderWorker = (simulation as any).canvasRenderer.renderWorker;
@@ -195,13 +203,21 @@ function populateWorkerList(simulation: Simulation): void {
     const workerListElement = document.getElementById('worker-list');
     if (!workerListElement) return;
     
+    // Store current selection
+    const currentSelection = (simulation as any).selectedWorkerId;
+    
+    // Clear the list
     workerListElement.innerHTML = '';
 
+    // Add workers to the list
     (simulation as any).workerManager.workers.forEach((worker: Worker) => {
         const workerColor = (simulation as any).canvasRenderer.workerColors.get(worker.id) || '#000000';
         
         const listItem = document.createElement('div');
         listItem.className = 'worker-list-item';
+        if (worker.id === currentSelection) {
+            listItem.classList.add('active');
+        }
         listItem.dataset.id = worker.id;
         listItem.innerHTML = `
             <span class="worker-color-dot" style="background-color: ${workerColor}"></span>

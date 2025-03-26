@@ -1,5 +1,6 @@
 import { Worker, Desk, Space, WorkerMentalState, WorkerPhysicalState, DeskState, SpaceState, DeskMap, WorkerEventMap, SpaceMap, WorkerMap, WorkerEvent, Dialog } from './types';
 import { generateId, getRandomDestination, moveWorkerTowardsDestination, getRandomNumber } from './utils';
+import { deskNames, spaceNames, getUniqueName } from './names';
 
 // Dialog phrases for different worker states and actions
 const DIALOG_PHRASES = {
@@ -118,6 +119,9 @@ export class OfficeWorkerManager {
         this.desks = [];
         this.desksMap = {};
         
+        // Create a set to track used desk names
+        const usedDeskNames = new Set<string>();
+        
         // Create desks in groups as shown in the image
         
         // Group 1: Top-left 2x2 grid
@@ -129,7 +133,8 @@ export class OfficeWorkerManager {
             spacingX: 30,
             spacingY: 50,
             deskWidth: 20,
-            deskHeight: 40
+            deskHeight: 40,
+            usedNames: usedDeskNames
         });
 
         this.createDeskGroup({
@@ -140,7 +145,8 @@ export class OfficeWorkerManager {
             spacingX: 30,
             spacingY: 50,
             deskWidth: 20,
-            deskHeight: 40
+            deskHeight: 40,
+            usedNames: usedDeskNames
         });
 
         this.createDeskGroup({
@@ -151,7 +157,8 @@ export class OfficeWorkerManager {
             spacingX: 30,
             spacingY: 50,
             deskWidth: 20,
-            deskHeight: 40
+            deskHeight: 40,
+            usedNames: usedDeskNames
         });
 
         this.createDeskGroup({
@@ -162,7 +169,8 @@ export class OfficeWorkerManager {
             spacingX: 30,
             spacingY: 50,
             deskWidth: 20,
-            deskHeight: 40
+            deskHeight: 40,
+            usedNames: usedDeskNames
         });
 
         /* Bottom row */
@@ -174,7 +182,8 @@ export class OfficeWorkerManager {
             spacingX: 50,
             spacingY: 30,
             deskWidth: 40,
-            deskHeight: 20
+            deskHeight: 20,
+            usedNames: usedDeskNames
         });
         
         // Group 2: Top-right 2x2 grid
@@ -204,7 +213,8 @@ export class OfficeWorkerManager {
         spacingX,
         spacingY,
         deskWidth,
-        deskHeight
+        deskHeight,
+        usedNames
     }: {
         startX: number,
         startY: number,
@@ -213,7 +223,8 @@ export class OfficeWorkerManager {
         spacingX: number,
         spacingY: number,
         deskWidth: number,
-        deskHeight: number
+        deskHeight: number,
+        usedNames: Set<string>
     }): void {
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
@@ -222,6 +233,7 @@ export class OfficeWorkerManager {
                 
                 const desk: Desk = {
                     id: generateId('desk'),
+                    name: getUniqueName(deskNames, usedNames),
                     x: deskX,
                     y: deskY,
                     width: deskWidth,
@@ -246,6 +258,9 @@ export class OfficeWorkerManager {
         this.spaces = [];
         this.spacesMap = {};
         
+        // Create a set to track used space names
+        const usedSpaceNames = new Set<string>();
+        
         // Create spaces as shown in the image
         
         // Left side meeting rooms (4 spaces)
@@ -258,8 +273,10 @@ export class OfficeWorkerManager {
         this.createSpace({x: 530, y: 640, width: 60, height: 60});
         this.createSpace({x: 610, y: 640, width: 60, height: 60});
 
-
-
+        // Add name to each space
+        this.spaces.forEach(space => {
+            space.name = getUniqueName(spaceNames, usedSpaceNames);
+        });
 
         // this.createSpace({x: 700, y: 475, width: 100, height: 50});
         // this.createSpace(160, 400, 10, 10);
@@ -282,10 +299,11 @@ export class OfficeWorkerManager {
     private createSpace({x, y, width, height}: {x: number, y: number, width: number, height: number}): void {
         const space: Space = {
             id: generateId('space'),
-            x: x,
-            y: y,
-            width: width,
-            height: height,
+            name: getUniqueName(spaceNames, new Set<string>()),
+            x,
+            y,
+            width,
+            height,
             state: SpaceState.AVAILABLE,
             destinationX: x,
             destinationY: y
@@ -454,7 +472,10 @@ export class OfficeWorkerManager {
                 const assignedDesk = this.desksMap[worker.assignedDeskId];
                 if (assignedDesk) {
                     assignedDesk.state = DeskState.ASSIGNED;
-                    assignedDesk.occupiedBy = worker.id;
+                    assignedDesk.occupiedBy = {
+                        workerId: worker.id,
+                        workerName: worker.name
+                    };
                     
                     // Set destination to the assigned desk
                     worker.destinationLocation = {
@@ -650,10 +671,13 @@ export class OfficeWorkerManager {
         }
         
         // Check if the desk is available
-        if (desk.state === DeskState.AVAILABLE || (desk.state === DeskState.ASSIGNED && desk.occupiedBy === worker.id)) {
+        if (desk.state === DeskState.AVAILABLE || (desk.state === DeskState.ASSIGNED && desk.occupiedBy?.workerId === worker.id)) {
             // Worker can occupy this desk
             desk.state = desk.state === DeskState.ASSIGNED ? DeskState.ASSIGNED : DeskState.OCCUPIED;
-            desk.occupiedBy = worker.id;
+            desk.occupiedBy = {
+                workerId: worker.id,
+                workerName: worker.name
+            };
             
             // Update worker state
             worker.physicalState = WorkerPhysicalState.WORKING;
@@ -1118,7 +1142,7 @@ export class OfficeWorkerManager {
         
         const availableDesks = this.desks.filter(desk => 
             desk.state === DeskState.AVAILABLE || 
-            (desk.state === DeskState.ASSIGNED && desk.occupiedBy === worker.id)
+            (desk.state === DeskState.ASSIGNED && desk.occupiedBy?.workerId === worker.id)
         );
         
         if (availableDesks.length > 0) {
